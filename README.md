@@ -2,14 +2,11 @@
 
 <img src="https://github.com/caiolandgraf/gest/blob/main/.github/images/gest.png?raw=true" alt="gest logo" height="90"/>
 
-<h1>gest</h1>
+<h1>gest 🧪</h1>
 
 <p>A Jest-inspired testing framework for Go — beautiful output, zero dependencies.</p>
 
 <p>
-  <a href="https://github.com/caiolandgraf/gest/actions/workflows/ci.yml">
-    <img src="https://github.com/caiolandgraf/gest/actions/workflows/ci.yml/badge.svg" alt="CI"/>
-  </a>
   <a href="https://pkg.go.dev/github.com/caiolandgraf/gest">
     <img src="https://img.shields.io/badge/go-reference-007d9c?logo=go&logoColor=white" alt="Go Reference"/>
   </a>
