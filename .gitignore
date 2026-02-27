@@ -16,6 +16,10 @@ go.work.sum
 # Vendored dependencies (optional)
 vendor/
 
+# Node modules
+docs/node_modules/
+
+
 # IDEs
 .idea/
 .vscode/
