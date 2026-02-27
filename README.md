@@ -1,4 +1,4 @@
-<div align="center">
+<div align="start">
 
 <h1>
     <img src="https://github.com/caiolandgraf/gest/blob/main/.github/images/gest.png?raw=true" alt="Pam logo" height="45" style="vertical-align: middle;"/> 
