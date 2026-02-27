@@ -37,13 +37,6 @@ jobs:
         working-directory: docs
         run: npm ci
 
-      - name: Copy WASM files
-        working-directory: docs
-        run: |
-          mkdir -p public
-          cp node_modules/sql.js/dist/sql-wasm-browser.wasm public/sql-wasm-browser.wasm
-          cp node_modules/sql.js/dist/sql-wasm.wasm public/sql-wasm.wasm
-
       - name: Build
         working-directory: docs
         run: npm run build
