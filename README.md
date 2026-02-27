@@ -1,12 +1,36 @@
-<div align="start">
+<div align="center">
 
-<h1>
-    <img src="https://github.com/caiolandgraf/gest/blob/main/.github/images/gest.png?raw=true" alt="Pam logo" height="45" style="vertical-align: middle;"/> 
-    gest 🧪
-</h1>
+<img src="https://github.com/caiolandgraf/gest/blob/main/.github/images/gest.png?raw=true" alt="gest logo" height="90"/>
+
+<h1>gest</h1>
+
+<p>A Jest-inspired testing framework for Go — beautiful output, zero dependencies.</p>
+
+<p>
+  <a href="https://github.com/caiolandgraf/gest/actions/workflows/ci.yml">
+    <img src="https://github.com/caiolandgraf/gest/actions/workflows/ci.yml/badge.svg" alt="CI"/>
+  </a>
+  <a href="https://pkg.go.dev/github.com/caiolandgraf/gest">
+    <img src="https://img.shields.io/badge/go-reference-007d9c?logo=go&logoColor=white" alt="Go Reference"/>
+  </a>
+  <a href="./LICENSE">
+    <img src="https://img.shields.io/github/license/caiolandgraf/gest" alt="License"/>
+  </a>
+</p>
+
+<p>
+  <a href="https://caiolandgraf.github.io/gest/"><strong>📖 Documentation</strong></a>
+  &nbsp;·&nbsp;
+  <a href="#installation">⚡ Quick Start</a>
+  &nbsp;·&nbsp;
+  <a href="#matchers">🔍 Matchers</a>
+  &nbsp;·&nbsp;
+  <a href="#full-api">📦 Full API</a>
+</p>
+
 </div>
 
-> A Jest-inspired testing framework for Go — beautiful output, zero dependencies.
+---
 
 ![gest passing tests output](.github/images/passing.png)
 
@@ -43,10 +67,16 @@ my-project/
 ```go
 package main
 
-import "github.com/caiolandgraf/gest/gest"
+import (
+    "os"
+
+    "github.com/caiolandgraf/gest/gest"
+)
 
 func main() {
-    gest.RunRegistered()
+    if !gest.RunRegistered() {
+        os.Exit(1)
+    }
 }
 ```
 
@@ -147,10 +177,10 @@ gest.RunAll(suite1, suite2, suite3)
 
 ## Example
 
-See the [`example/`](./example) folder for a working project with multiple spec files.
+See the [`examples/`](./examples) folder for a working project with multiple spec files.
 
 ```bash
-cd example
+cd examples
 go run .
 go run . -c
 ```
@@ -179,4 +209,4 @@ MIT
 
 ---
 
-<p align="center">Made with 🧪 by <a href="https://github.com/caiolandgraf">@caiolandgraf</a></p>
+<p align="center">Made with 🧪 by <a href="https://github.com/caiolandgraf">@caiolandgraf</a> · <a href="https://caiolandgraf.github.io/gest/">caiolandgraf.github.io/gest</a></p>
