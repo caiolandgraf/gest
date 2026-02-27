@@ -1,0 +1,23 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Vendored dependencies (optional)
+vendor/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
