@@ -5,10 +5,17 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
@@ -35,8 +42,157 @@ func Register(s *Suite) {
 
 // RunRegistered runs all suites registered via Register().
 // This is all your main.go needs to call.
+//
+// If --watch (or -w) is present in os.Args, RunRegistered enters watch mode:
+// it runs tests immediately and then re-runs them whenever a .go file changes.
+// The flag is stripped before the args are forwarded to the subprocess.
 func RunRegistered() bool {
+	var watchMode bool
+	var remaining []string
+
+	for _, arg := range os.Args[1:] {
+		if arg == "--watch" || arg == "-w" {
+			watchMode = true
+		} else {
+			remaining = append(remaining, arg)
+		}
+	}
+
+	if watchMode {
+		WatchTests(remaining)
+		return true
+	}
+
 	return RunAll(registry...)
+}
+
+// ── Watch mode ────────────────────────────────────────────────────────────────
+
+// WatchTests compiles the project into a temporary OS directory, runs it
+// immediately, then re-runs it automatically on every .go file change.
+// args are forwarded to the binary on each invocation.
+// The temp directory is removed when the process exits.
+func WatchTests(args []string) {
+	tmpDir, err := os.MkdirTemp("", "gest-*")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gest: failed to create temp dir: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Remove the temp dir when the user presses Ctrl+C or the process is terminated.
+	watchSetupCleanup(tmpDir)
+
+	fmt.Println("\ngest: running tests…")
+	watchBuildAndRun(tmpDir, args)
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "gest: failed to create watcher: %v\n", err)
+		os.Exit(1)
+	}
+	defer func() { _ = w.Close() }()
+
+	if err := watchAddDirs(w); err != nil {
+		fmt.Fprintf(os.Stderr, "gest: failed to watch directories: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("\ngest: watching for changes… (Ctrl+C to stop)")
+
+	var (
+		mu    sync.Mutex
+		timer *time.Timer
+	)
+
+	for {
+		select {
+		case event, ok := <-w.Events:
+			if !ok {
+				return
+			}
+			if !strings.HasSuffix(event.Name, ".go") {
+				continue
+			}
+			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
+				continue
+			}
+
+			// Debounce: reset the timer on every burst event so rapid saves
+			// (e.g. auto-format on save) collapse into a single re-run.
+			mu.Lock()
+			if timer != nil {
+				timer.Stop()
+			}
+			timer = time.AfterFunc(200*time.Millisecond, func() {
+				fmt.Print("\033[2J\033[3J\033[H")
+				watchBuildAndRun(tmpDir, args)
+			})
+			mu.Unlock()
+
+		case err, ok := <-w.Errors:
+			if !ok {
+				return
+			}
+			fmt.Fprintf(os.Stderr, "gest: watcher error: %v\n", err)
+		}
+	}
+}
+
+// watchSetupCleanup removes the temp directory on Ctrl+C or SIGTERM.
+func watchSetupCleanup(tmpDir string) {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-ch
+		_ = os.RemoveAll(tmpDir)
+		os.Exit(0)
+	}()
+}
+
+// watchBuildAndRun compiles the project into a temp binary and executes it.
+// If compilation fails the errors are printed and the run is skipped.
+func watchBuildAndRun(tmpDir string, args []string) {
+	bin := tmpDir + "/runner"
+	if runtime.GOOS == "windows" {
+		bin += ".exe"
+	}
+
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Stdout = os.Stdout
+	build.Stderr = os.Stderr
+	if err := build.Run(); err != nil {
+		return
+	}
+
+	cmd := exec.Command(bin, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	_ = cmd.Run()
+}
+
+// watchAddDirs walks the cwd and registers every sub-directory with the
+// watcher, skipping vendor and hidden directories (e.g. .git).
+func watchAddDirs(w *fsnotify.Watcher) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	return filepath.Walk(
+		cwd,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if !info.IsDir() {
+				return nil
+			}
+			name := info.Name()
+			if strings.HasPrefix(name, ".") || name == "vendor" {
+				return filepath.SkipDir
+			}
+			return w.Add(path)
+		},
+	)
 }
 
 // ── failure ───────────────────────────────────────────────────────────────────

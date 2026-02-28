@@ -117,9 +117,9 @@
           <div class="docs-callout docs-callout--info">
             <span class="docs-callout__icon">💡</span>
             <div>
-              <strong>Requires Go 1.18+.</strong> gest uses only the standard
-              library — no <code>require</code> entries beyond the module itself
-              will be added.
+              <strong>Requires Go 1.18+.</strong> The core runner is stdlib
+              only. <code>fsnotify</code> is added as the single external
+              dependency to power watch mode.
             </div>
           </div>
         </section>
@@ -267,6 +267,60 @@
               height="892"
               loading="lazy"
             />
+          </div>
+        </section>
+
+        <hr class="docs-divider" />
+
+        <!-- ── Watch Mode ─────────────────────────────────────────────────── -->
+        <section class="docs-section" id="watch">
+          <div class="docs-section__anchor-header">
+            <h2 class="docs-section__title">
+              <a
+                href="#watch"
+                class="docs-anchor"
+                @click.prevent="scrollTo('watch')"
+                aria-label="Link to Watch Mode"
+                >#</a
+              >
+              Watch Mode
+            </h2>
+          </div>
+          <p>
+            Pass <code>--watch</code> (or <code>-w</code>) to enter watch mode.
+            gest compiles your project into a temporary binary in your OS temp
+            directory, runs it immediately, then re-runs it automatically
+            whenever any <code>.go</code> file changes.
+          </p>
+          <div class="code-block">
+            <div class="code-block__header">
+              <span class="code-block__lang">bash</span>
+              <button
+                class="code-block__copy"
+                @click="copy(watchCode, 'watch')"
+              >
+                {{ copied === 'watch' ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+            <pre><code class="language-bash">{{ watchCode }}</code></pre>
+          </div>
+          <div class="docs-callout docs-callout--info">
+            <span class="docs-callout__icon">⚡</span>
+            <div>
+              <strong>Debounced re-runs.</strong> Rapid saves (e.g. auto-format
+              on save) are collapsed into a single re-run via a 200 ms debounce
+              — so you always see one clean result, never a burst.
+            </div>
+          </div>
+          <div class="docs-callout docs-callout--tip">
+            <span class="docs-callout__icon">🧹</span>
+            <div>
+              The terminal is <strong>fully cleared</strong> (including
+              scrollback) before each re-run. The compiled binary is written to
+              your OS temp directory and
+              <strong>automatically removed</strong> when you press
+              <kbd>Ctrl+C</kbd> — no artifacts are left in your project.
+            </div>
           </div>
         </section>
 
@@ -712,6 +766,7 @@ const navGroups = [
   {
     label: 'Features',
     items: [
+      { id: 'watch', label: 'Watch Mode' },
       { id: 'failures', label: 'Failure Messages' },
       { id: 'coverage', label: 'Coverage' },
       { id: 'matchers', label: 'Matchers' },
@@ -838,8 +893,8 @@ const apiFunctions = [
 const philosophy = [
   {
     icon: '📦',
-    title: 'Zero dependencies',
-    desc: 'Stdlib only. Your go.sum stays clean and there are no version conflicts to manage.'
+    title: 'Minimal dependencies',
+    desc: 'The core runner is stdlib only. The single external dependency (fsnotify) exists solely to power watch mode.'
   },
   {
     icon: '⚙️',
@@ -895,6 +950,10 @@ func init() {
 const runCode = `go run .           # run all tests
 go run . -c        # run with coverage table
 go run . --coverage`
+
+const watchCode = `go run . --watch         # watch mode — re-runs on every .go change
+go run . -w              # shorthand
+go run . --watch -c      # watch + coverage`
 
 const matchersExampleCode = `s.It("demonstrates all matchers", func(t *gest.T) {
     // Strict equality

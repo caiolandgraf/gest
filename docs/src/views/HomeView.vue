@@ -14,7 +14,7 @@
             style="animation-delay: 0ms"
           >
             <span class="badge badge--green badge--dot"
-              >v1.0.0 — Now available</span
+              >v1.1.0 — Now available</span
             >
             <a
               href="https://github.com/caiolandgraf/gest"
@@ -61,7 +61,7 @@
             experience to Go — colored output, descriptive failure messages with
             code snippets, a fluent assertion API, and a beautiful coverage
             table. All in a single file with
-            <strong>zero external dependencies</strong>.
+            <strong>minimal dependencies</strong>.
           </p>
 
           <div
@@ -491,8 +491,8 @@ const features = [
   {
     icon: '📦',
     iconBg: 'rgba(88, 166, 255, 0.1)',
-    title: 'Zero dependencies',
-    desc: 'Pure Go stdlib only. No go.sum bloat, no version conflicts, no surprises. Drop it in and go.'
+    title: 'Minimal dependencies',
+    desc: 'Core runner is stdlib only. fsnotify is the single external dep, used exclusively for watch mode.'
   },
   {
     icon: '🔗',
@@ -592,7 +592,8 @@ func init() {
     title: 'Run your tests',
     lang: 'bash',
     code: `go run .           # run all tests
-go run . -c        # run with coverage table`
+go run . -c        # run with coverage table
+go run . --watch   # watch mode — re-run on every .go change`
   }
 ]
 
@@ -600,8 +601,8 @@ go run . -c        # run with coverage table`
 const pillars = [
   {
     icon: '📦',
-    title: 'Zero dependencies',
-    desc: 'The entire framework is stdlib only. Your go.sum stays clean.'
+    title: 'Minimal dependencies',
+    desc: 'Core runner is stdlib only. The single external dep (fsnotify) powers watch mode and nothing else.'
   },
   {
     icon: '⚙️',

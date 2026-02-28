@@ -4,7 +4,7 @@
 
 <h1>gest 🧪</h1>
 
-<p>A Jest-inspired testing framework for Go — beautiful output, zero dependencies.</p>
+<p>A Jest-inspired testing framework for Go — beautiful output, minimal dependencies.</p>
 
 <p>
   <a href="https://pkg.go.dev/github.com/caiolandgraf/gest">
@@ -33,7 +33,7 @@
 
 ## Motivation
 
-Go's built-in `go test` is powerful but raw. **gest** brings Jest's developer experience to Go: colored output, descriptive failure messages with code snippets, and a fluent assertion API — all in a single file with zero external dependencies.
+Go's built-in `go test` is powerful but raw. **gest** brings Jest's developer experience to Go: colored output, descriptive failure messages with code snippets, and a fluent assertion API — all with minimal setup and no config files.
 
 ## Installation
 
@@ -108,6 +108,21 @@ go run .           # run all tests
 go run . -c        # run with coverage table
 ```
 
+## Watch mode
+
+Pass `--watch` (or `-w`) to enter watch mode. gest compiles your project into a temporary binary (in your OS temp directory), runs it immediately, then re-runs it automatically whenever any `.go` file changes.
+
+```bash
+go run . --watch         # watch mode
+go run . -w              # shorthand
+go run . --watch -c      # watch + coverage
+```
+
+- Rapid saves are collapsed via a **200 ms debounce** — one clean result per save, never a burst.
+- The terminal is **cleared** before each re-run so the output is always fresh.
+- The temporary binary is **automatically removed** when you press `Ctrl+C`.
+- No artifacts are left in your project directory.
+
 ## Failure messages
 
 When a test fails, gest shows exactly what went wrong — just like Jest:
@@ -180,11 +195,12 @@ See the [`examples/`](./examples) folder for a working project with multiple spe
 cd examples
 go run .
 go run . -c
+go run . --watch
 ```
 
 ## Philosophy
 
-- **Zero dependencies** — stdlib only
+- **Minimal dependencies** — only [fsnotify](https://github.com/fsnotify/fsnotify) for watch mode; the core runner is stdlib only
 - **Zero config** — no config files, no separate CLI
 - **Auto-discovery** via `init()` — just add a `_spec.go` file and it runs
 - **Beautiful output** — colors, code snippets, progress bars

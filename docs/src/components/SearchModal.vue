@@ -19,11 +19,18 @@
         @keydown.escape.prevent="$emit('close')"
       >
         <div class="s-modal">
-
           <!-- ── Input ──────────────────────────────────────────────────── -->
           <div class="s-header">
-            <svg class="s-header__icon" width="18" height="18" viewBox="0 0 24 24"
-              fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <svg
+              class="s-header__icon"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
               <circle cx="11" cy="11" r="8" />
               <path d="m21 21-4.35-4.35" />
             </svg>
@@ -48,7 +55,6 @@
 
           <!-- ── Body ──────────────────────────────────────────────────── -->
           <div class="s-body" ref="bodyRef">
-
             <!-- Results -->
             <template v-if="groups.length">
               <div v-for="group in groups" :key="group.label" class="s-group">
@@ -64,14 +70,31 @@
                     @mouseenter="activeIndex = item._idx"
                     @mousedown.prevent="navigate(item)"
                   >
-                    <span class="s-result__icon" aria-hidden="true">{{ item.icon }}</span>
+                    <span class="s-result__icon" aria-hidden="true">{{
+                      item.icon
+                    }}</span>
                     <span class="s-result__body">
-                      <span class="s-result__title" v-html="highlight(item.title)"></span>
-                      <span v-if="item.desc" class="s-result__desc">{{ item.desc }}</span>
+                      <span
+                        class="s-result__title"
+                        v-html="highlight(item.title)"
+                      ></span>
+                      <span v-if="item.desc" class="s-result__desc">{{
+                        item.desc
+                      }}</span>
                     </span>
-                    <span class="s-result__badge" :data-type="item.type">{{ item.type }}</span>
-                    <svg class="s-result__arrow" width="14" height="14" viewBox="0 0 24 24"
-                      fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <span class="s-result__badge" :data-type="item.type">{{
+                      item.type
+                    }}</span>
+                    <svg
+                      class="s-result__arrow"
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
                       <path d="M9 18l6-6-6-6" />
                     </svg>
                   </li>
@@ -81,12 +104,21 @@
 
             <!-- No results -->
             <div v-else-if="query.trim()" class="s-empty">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.35-4.35" />
               </svg>
-              <p>No results for <strong>"{{ query }}"</strong></p>
+              <p>
+                No results for <strong>"{{ query }}"</strong>
+              </p>
               <span>Try searching for a matcher name or doc section.</span>
             </div>
 
@@ -104,7 +136,6 @@
                 </button>
               </div>
             </div>
-
           </div>
 
           <!-- ── Footer ─────────────────────────────────────────────────── -->
@@ -113,18 +144,13 @@
               <span class="s-footer__key-group">
                 <kbd>↑</kbd><kbd>↓</kbd> navigate
               </span>
-              <span class="s-footer__key-group">
-                <kbd>↵</kbd> open
-              </span>
-              <span class="s-footer__key-group">
-                <kbd>Esc</kbd> close
-              </span>
+              <span class="s-footer__key-group"> <kbd>↵</kbd> open </span>
+              <span class="s-footer__key-group"> <kbd>Esc</kbd> close </span>
             </span>
             <span class="s-footer__brand">
               <span>gest</span> <span class="s-footer__emoji">🧪</span> docs
             </span>
           </div>
-
         </div>
       </div>
     </Transition>
@@ -137,63 +163,288 @@ import { useRouter } from 'vue-router'
 
 /* ── Props / emits ─────────────────────────────────────────────────────────── */
 const props = defineProps({ open: Boolean })
-const emit  = defineEmits(['close'])
+const emit = defineEmits(['close'])
 
-const router   = useRouter()
+const router = useRouter()
 const inputRef = ref(null)
-const bodyRef  = ref(null)
-const query    = ref('')
+const bodyRef = ref(null)
+const query = ref('')
 const activeIndex = ref(0)
 
 /* ── Reset when modal opens / closes ──────────────────────────────────────── */
-watch(() => props.open, (val) => {
-  if (val) {
-    query.value       = ''
-    activeIndex.value = 0
-    nextTick(() => inputRef.value?.focus())
+watch(
+  () => props.open,
+  val => {
+    if (val) {
+      query.value = ''
+      activeIndex.value = 0
+      nextTick(() => inputRef.value?.focus())
+    }
   }
-})
+)
 
 /* ── Search index ──────────────────────────────────────────────────────────── */
 const allItems = [
   // ── Pages ──────────────────────────────────────────────────────────────
-  { type: 'page',    icon: '⌂',  title: 'Home',         desc: 'Landing page — features and quick start',           route: '/' },
-  { type: 'page',    icon: '📖', title: 'Documentation', desc: 'Full reference — installation, matchers, API',      route: '/docs' },
-  { type: 'page',    icon: '👥', title: 'Contributors',  desc: 'Meet the people behind gest',                       route: '/contributors' },
+  {
+    type: 'page',
+    icon: '⌂',
+    title: 'Home',
+    desc: 'Landing page — features and quick start',
+    route: '/'
+  },
+  {
+    type: 'page',
+    icon: '📖',
+    title: 'Documentation',
+    desc: 'Full reference — installation, matchers, API',
+    route: '/docs'
+  },
+  {
+    type: 'page',
+    icon: '👥',
+    title: 'Contributors',
+    desc: 'Meet the people behind gest',
+    route: '/contributors'
+  },
 
   // ── Doc sections ───────────────────────────────────────────────────────
-  { type: 'section', icon: '📦', title: 'Installation',     desc: 'go get github.com/caiolandgraf/gest',            route: '/docs', hash: 'installation' },
-  { type: 'section', icon: '📁', title: 'Project Structure',desc: '_spec.go files alongside your code',              route: '/docs', hash: 'structure' },
-  { type: 'section', icon: '🚀', title: 'Basic Usage',      desc: 'Describe, It, Register, RunRegistered',          route: '/docs', hash: 'usage' },
-  { type: 'section', icon: '▶️', title: 'Running Tests',    desc: 'go run . and go run . -c',                       route: '/docs', hash: 'running' },
-  { type: 'section', icon: '❌', title: 'Failure Messages', desc: 'Expected vs Received diff with code snippet',    route: '/docs', hash: 'failures' },
-  { type: 'section', icon: '📊', title: 'Coverage',         desc: 'Per-suite pass-rate table with progress bars',   route: '/docs', hash: 'coverage' },
-  { type: 'section', icon: '🔗', title: 'Matchers',         desc: 'All 10 built-in assertion matchers',             route: '/docs', hash: 'matchers' },
-  { type: 'section', icon: '🔄', title: 'Negation',         desc: '.Not() negates any matcher',                     route: '/docs', hash: 'negation' },
-  { type: 'section', icon: '📚', title: 'Full API',         desc: 'Describe, It, Register, RunAll, Expect, Not',   route: '/docs', hash: 'api' },
-  { type: 'section', icon: '💡', title: 'Philosophy',       desc: 'Zero deps, zero config, auto-discovery',        route: '/docs', hash: 'philosophy' },
-  { type: 'section', icon: '🧪', title: 'Example Project',  desc: 'Runnable example in example/ directory',         route: '/docs', hash: 'example' },
+  {
+    type: 'section',
+    icon: '📦',
+    title: 'Installation',
+    desc: 'go get github.com/caiolandgraf/gest',
+    route: '/docs',
+    hash: 'installation'
+  },
+  {
+    type: 'section',
+    icon: '📁',
+    title: 'Project Structure',
+    desc: '_spec.go files alongside your code',
+    route: '/docs',
+    hash: 'structure'
+  },
+  {
+    type: 'section',
+    icon: '🚀',
+    title: 'Basic Usage',
+    desc: 'Describe, It, Register, RunRegistered',
+    route: '/docs',
+    hash: 'usage'
+  },
+  {
+    type: 'section',
+    icon: '▶️',
+    title: 'Running Tests',
+    desc: 'go run . and go run . -c',
+    route: '/docs',
+    hash: 'running'
+  },
+  {
+    type: 'section',
+    icon: '❌',
+    title: 'Failure Messages',
+    desc: 'Expected vs Received diff with code snippet',
+    route: '/docs',
+    hash: 'failures'
+  },
+  {
+    type: 'section',
+    icon: '📊',
+    title: 'Coverage',
+    desc: 'Per-suite pass-rate table with progress bars',
+    route: '/docs',
+    hash: 'coverage'
+  },
+  {
+    type: 'section',
+    icon: '🔗',
+    title: 'Matchers',
+    desc: 'All 10 built-in assertion matchers',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'section',
+    icon: '🔄',
+    title: 'Negation',
+    desc: '.Not() negates any matcher',
+    route: '/docs',
+    hash: 'negation'
+  },
+  {
+    type: 'section',
+    icon: '📚',
+    title: 'Full API',
+    desc: 'Describe, It, Register, RunAll, Expect, Not',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'section',
+    icon: '👁',
+    title: 'Watch Mode',
+    desc: '--watch re-runs tests on every .go file change',
+    route: '/docs',
+    hash: 'watch'
+  },
+  {
+    type: 'section',
+    icon: '💡',
+    title: 'Philosophy',
+    desc: 'Minimal deps, zero config, auto-discovery',
+    route: '/docs',
+    hash: 'philosophy'
+  },
+  {
+    type: 'section',
+    icon: '🧪',
+    title: 'Example Project',
+    desc: 'Runnable example in example/ directory',
+    route: '/docs',
+    hash: 'example'
+  },
 
   // ── Matchers ───────────────────────────────────────────────────────────
-  { type: 'matcher', icon: '=',  title: '.ToBe(v)',            desc: 'Strict equality (==) — best for primitives',      route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '≡',  title: '.ToEqual(v)',         desc: 'Deep equality via reflect.DeepEqual',             route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '∅',  title: '.ToBeNil()',          desc: 'Value is nil — works with pointers and interfaces', route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '✓',  title: '.ToBeTrue()',         desc: 'Value is exactly true',                           route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '✗',  title: '.ToBeFalse()',        desc: 'Value is exactly false',                          route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '⊃',  title: '.ToContain(s)',       desc: 'String contains the given substring',             route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '#',  title: '.ToHaveLength(n)',    desc: 'Length of string, slice, array or map',           route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '>',  title: '.ToBeGreaterThan(n)', desc: 'Number strictly greater than n',                  route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '<',  title: '.ToBeLessThan(n)',    desc: 'Number strictly less than n',                     route: '/docs', hash: 'matchers' },
-  { type: 'matcher', icon: '≈',  title: '.ToBeCloseTo(n, d?)', desc: 'Float approximately equal (default delta ±0.001)', route: '/docs', hash: 'matchers' },
+  {
+    type: 'matcher',
+    icon: '=',
+    title: '.ToBe(v)',
+    desc: 'Strict equality (==) — best for primitives',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '≡',
+    title: '.ToEqual(v)',
+    desc: 'Deep equality via reflect.DeepEqual',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '∅',
+    title: '.ToBeNil()',
+    desc: 'Value is nil — works with pointers and interfaces',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '✓',
+    title: '.ToBeTrue()',
+    desc: 'Value is exactly true',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '✗',
+    title: '.ToBeFalse()',
+    desc: 'Value is exactly false',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '⊃',
+    title: '.ToContain(s)',
+    desc: 'String contains the given substring',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '#',
+    title: '.ToHaveLength(n)',
+    desc: 'Length of string, slice, array or map',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '>',
+    title: '.ToBeGreaterThan(n)',
+    desc: 'Number strictly greater than n',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '<',
+    title: '.ToBeLessThan(n)',
+    desc: 'Number strictly less than n',
+    route: '/docs',
+    hash: 'matchers'
+  },
+  {
+    type: 'matcher',
+    icon: '≈',
+    title: '.ToBeCloseTo(n, d?)',
+    desc: 'Float approximately equal (default delta ±0.001)',
+    route: '/docs',
+    hash: 'matchers'
+  },
 
   // ── API symbols ────────────────────────────────────────────────────────
-  { type: 'api',     icon: '◎',  title: 'gest.Describe(name)',   desc: 'Create a new test suite',                     route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: '(*Suite).It(name, fn)', desc: 'Add a test case to a suite',                  route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: 'gest.Register(s)',      desc: 'Add suite to the global registry',            route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: 'gest.RunRegistered()',  desc: 'Run all registered suites from main()',        route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: 'gest.RunAll(...)',       desc: 'Run specific suites manually',                route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: '(*T).Expect(v)',        desc: 'Start an assertion chain',                    route: '/docs', hash: 'api' },
-  { type: 'api',     icon: '◎',  title: '(*Expectation).Not()',  desc: 'Negate the next matcher',                     route: '/docs', hash: 'api' },
+  {
+    type: 'api',
+    icon: '◎',
+    title: 'gest.Describe(name)',
+    desc: 'Create a new test suite',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: '(*Suite).It(name, fn)',
+    desc: 'Add a test case to a suite',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: 'gest.Register(s)',
+    desc: 'Add suite to the global registry',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: 'gest.RunRegistered()',
+    desc: 'Run all registered suites from main()',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: 'gest.RunAll(...)',
+    desc: 'Run specific suites manually',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: '(*T).Expect(v)',
+    desc: 'Start an assertion chain',
+    route: '/docs',
+    hash: 'api'
+  },
+  {
+    type: 'api',
+    icon: '◎',
+    title: '(*Expectation).Not()',
+    desc: 'Negate the next matcher',
+    route: '/docs',
+    hash: 'api'
+  }
 ].map((item, i) => ({ ...item, _idx: i }))
 
 const typeOrder = { page: 0, section: 1, matcher: 2, api: 3 }
@@ -204,10 +455,11 @@ const results = computed(() => {
   if (!q) return []
 
   return allItems
-    .filter(item =>
-      item.title.toLowerCase().includes(q) ||
-      item.desc?.toLowerCase().includes(q)  ||
-      item.type.toLowerCase().includes(q)
+    .filter(
+      item =>
+        item.title.toLowerCase().includes(q) ||
+        item.desc?.toLowerCase().includes(q) ||
+        item.type.toLowerCase().includes(q)
     )
     .sort((a, b) => {
       // Exact title match first
@@ -220,7 +472,12 @@ const results = computed(() => {
 })
 
 /* ── Grouped results ───────────────────────────────────────────────────────── */
-const GROUP_LABELS = { page: 'Pages', section: 'Sections', matcher: 'Matchers', api: 'API' }
+const GROUP_LABELS = {
+  page: 'Pages',
+  section: 'Sections',
+  matcher: 'Matchers',
+  api: 'API'
+}
 
 const groups = computed(() => {
   if (!results.value.length) return []
@@ -231,15 +488,19 @@ const groups = computed(() => {
   }
   return Array.from(map.entries()).map(([type, items]) => ({
     label: GROUP_LABELS[type] ?? type,
-    items,
+    items
   }))
 })
 
 /* ── Quick links shown when query is empty ────────────────────────────────── */
-const quickLinks = allItems.filter(i => i.type === 'page' || ['installation','usage','matchers','api'].includes(i.hash))
+const quickLinks = allItems.filter(
+  i =>
+    i.type === 'page' ||
+    ['installation', 'usage', 'matchers', 'api'].includes(i.hash)
+)
 
 /* ── Keyboard navigation ───────────────────────────────────────────────────── */
-const flatResults = computed(() => results.value.length ? results.value : [])
+const flatResults = computed(() => (results.value.length ? results.value : []))
 
 function moveDown() {
   const max = flatResults.value.length - 1
@@ -256,13 +517,17 @@ function moveUp() {
 }
 
 function selectActive() {
-  const item = flatResults.value.find(i => i._idx === activeIndex.value) ?? flatResults.value[0]
+  const item =
+    flatResults.value.find(i => i._idx === activeIndex.value) ??
+    flatResults.value[0]
   if (item) navigate(item)
 }
 
 function scrollActiveIntoView() {
   nextTick(() => {
-    bodyRef.value?.querySelector('.s-result--active')?.scrollIntoView({ block: 'nearest' })
+    bodyRef.value
+      ?.querySelector('.s-result--active')
+      ?.scrollIntoView({ block: 'nearest' })
   })
 }
 
@@ -275,7 +540,10 @@ async function navigate(item) {
     setTimeout(() => {
       const el = document.getElementById(item.hash)
       if (!el) return
-      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 88, behavior: 'smooth' })
+      window.scrollTo({
+        top: el.getBoundingClientRect().top + window.scrollY - 88,
+        behavior: 'smooth'
+      })
     }, 120)
   }
 }
@@ -295,7 +563,9 @@ function highlight(text) {
 }
 
 /* ── Reset active when results change ──────────────────────────────────────── */
-watch(results, () => { activeIndex.value = flatResults.value[0]?._idx ?? 0 })
+watch(results, () => {
+  activeIndex.value = flatResults.value[0]?._idx ?? 0
+})
 </script>
 
 <style scoped>
@@ -486,10 +756,22 @@ watch(results, () => { activeIndex.value = flatResults.value[0]?._idx ?? 0 })
   opacity: 0.85;
 }
 
-.s-result__badge[data-type="page"]    { background: rgba(88, 166, 255, 0.12);  color: var(--blue); }
-.s-result__badge[data-type="section"] { background: rgba(63, 185, 80, 0.1);   color: var(--green-bright); }
-.s-result__badge[data-type="matcher"] { background: rgba(188, 140, 255, 0.1); color: var(--purple); }
-.s-result__badge[data-type="api"]     { background: rgba(227, 179, 65, 0.1);  color: var(--yellow); }
+.s-result__badge[data-type='page'] {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--blue);
+}
+.s-result__badge[data-type='section'] {
+  background: rgba(63, 185, 80, 0.1);
+  color: var(--green-bright);
+}
+.s-result__badge[data-type='matcher'] {
+  background: rgba(188, 140, 255, 0.1);
+  color: var(--purple);
+}
+.s-result__badge[data-type='api'] {
+  background: rgba(227, 179, 65, 0.1);
+  color: var(--yellow);
+}
 
 .s-result__arrow {
   color: var(--text-4);
