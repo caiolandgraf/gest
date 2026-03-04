@@ -481,7 +481,7 @@ func printCoverageTable(suites []*suite) {
 // ── run ───────────────────────────────────────────────────────────────────────
 
 func runAll(args []string, showCoverage bool) bool {
-	goArgs := append([]string{"test", "-v", "-json"}, args...)
+	goArgs := append([]string{"test", "-json"}, args...)
 	cmd := exec.Command("go", goArgs...)
 	cmd.Stderr = os.Stderr
 
