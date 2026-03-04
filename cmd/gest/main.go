@@ -55,14 +55,14 @@ type testCase struct {
 
 type suite struct {
 	pkg         string
-	name        string // the Describe("name") value, or TestXxx fallback
-	topTest     string // the TestXxx function name
+	name        string
+	topTest     string
 	tests       []*testCase
 	byName      map[string]*testCase
 	passed      int
 	failed      int
 	skipped     int
-	elapsed     time.Duration
+	elapsed     time.Duration // wall clock of the top-level TestXxx (includes setup outside t.Run)
 	buildFailed bool
 	buildOutput []string
 }
@@ -101,11 +101,15 @@ func (s *suite) getOrCreateItem(subName string) *testCase {
 // TestXxx function. Each It() subtest becomes a testCase inside that suite.
 // The Describe("name") value is captured from the "gest:describe:<name>" log
 // line emitted by Suite.Run and used as the suite display name.
-func parseStream(r io.Reader) ([]*suite, bool) {
+func parseStream(r io.Reader) ([]*suite, []*pkgResult, bool) {
 	// key: "pkg::TestXxx"
 	byKey := map[string]*suite{}
 	var suites []*suite
 	allPassed := true
+
+	// per-package wall-clock elapsed from the package-level pass/fail event
+	var pkgResults []*pkgResult
+	pkgResultByPkg := map[string]*pkgResult{}
 
 	// pkgBuildOutput holds package-level output lines (build errors, etc.)
 	pkgBuildOutput := map[string][]string{}
@@ -186,14 +190,13 @@ func parseStream(r io.Reader) ([]*suite, bool) {
 
 		case "pass":
 			if ev.Test == "" {
-				// package done — attach any build output
-				for _, s := range suites {
-					if s.pkg == ev.Package {
-						s.elapsed = time.Duration(
-							ev.Elapsed * float64(time.Second),
-						)
-					}
+				// package done — record wall-clock elapsed for totalTime
+				pr := &pkgResult{
+					pkg:     ev.Package,
+					elapsed: time.Duration(ev.Elapsed * float64(time.Second)),
 				}
+				pkgResults = append(pkgResults, pr)
+				pkgResultByPkg[ev.Package] = pr
 				continue
 			}
 			top := topOf(ev.Test)
@@ -201,10 +204,9 @@ func parseStream(r io.Reader) ([]*suite, bool) {
 			elapsed := time.Duration(ev.Elapsed * float64(time.Second))
 
 			if !isSubtest {
-				// top-level TestXxx finished — elapsed already set by subtest accumulation
-				if s.elapsed == 0 {
-					s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
-				}
+				// top-level TestXxx finished — use its elapsed as suite wall clock
+				// (includes any setup code outside t.Run, e.g. config.Load(), DB setup)
+				s.elapsed = elapsed
 			} else {
 				subName := stripDupSuffix(
 					ev.Test[strings.Index(ev.Test, "/")+1:],
@@ -258,9 +260,7 @@ func parseStream(r io.Reader) ([]*suite, bool) {
 			elapsed := time.Duration(ev.Elapsed * float64(time.Second))
 
 			if !isSubtest {
-				if s.elapsed == 0 {
-					s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
-				}
+				s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
 				// if no subtests were recorded, this is a build/compile failure
 				if len(s.tests) == 0 {
 					s.buildFailed = true
@@ -295,7 +295,12 @@ func parseStream(r io.Reader) ([]*suite, bool) {
 		}
 	}
 
-	return suites, allPassed
+	return suites, pkgResults, allPassed
+}
+
+type pkgResult struct {
+	pkg     string
+	elapsed time.Duration
 }
 
 // stripDupSuffix removes Go's automatic "#NN" deduplication suffix from
@@ -495,7 +500,7 @@ func runAll(args []string, showCoverage bool) bool {
 		return false
 	}
 
-	suites, allPassed := parseStream(stdout)
+	suites, pkgResults, allPassed := parseStream(stdout)
 	_ = cmd.Wait()
 
 	fmt.Println()
@@ -521,7 +526,6 @@ func runAll(args []string, showCoverage bool) bool {
 
 	totalSuitesFailed := 0
 	totalPassed, totalFailed, totalSkipped := 0, 0, 0
-	var totalTime time.Duration
 	for _, s := range suites {
 		if s.failed > 0 || s.buildFailed {
 			totalSuitesFailed++
@@ -529,7 +533,17 @@ func runAll(args []string, showCoverage bool) bool {
 		totalPassed += s.passed
 		totalFailed += s.failed
 		totalSkipped += s.skipped
-		totalTime += s.elapsed
+	}
+	var totalTime time.Duration
+	for _, pr := range pkgResults {
+		totalTime += pr.elapsed
+	}
+	// fallback: if no package-level events arrived (e.g. build failure before
+	// any test ran), sum suite elapseds so the display is never empty
+	if totalTime == 0 {
+		for _, s := range suites {
+			totalTime += s.elapsed
+		}
 	}
 	suitesPassed := len(suites) - totalSuitesFailed
 	total := totalPassed + totalFailed + totalSkipped
