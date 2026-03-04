@@ -123,7 +123,7 @@ func WatchTests(args []string) {
 			if timer != nil {
 				timer.Stop()
 			}
-			timer = time.AfterFunc(200*time.Millisecond, func() {
+			timer = time.AfterFunc(30*time.Millisecond, func() {
 				fmt.Print("\033[2J\033[3J\033[H")
 				watchBuildAndRun(tmpDir, args)
 			})
