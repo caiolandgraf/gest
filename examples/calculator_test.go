@@ -1,13 +1,17 @@
-package main
+package examples
 
-import "github.com/caiolandgraf/gest/gest"
+import (
+	"testing"
 
-func init() {
+	"github.com/caiolandgraf/gest/gest"
+)
+
+func TestCalculator(t *testing.T) {
 	calc := Calculator{}
 	s := gest.Describe("calculator")
 
 	s.It("adding 2 + 2 should return 4", func(t *gest.T) {
-		t.Expect(calc.Add(2, 2)).ToBe(float64(5))
+		t.Expect(calc.Add(2, 2)).ToBe(float64(5)) // intentional failure
 	})
 
 	s.It("adding 2 + 2 should return 4", func(t *gest.T) {
@@ -33,5 +37,5 @@ func init() {
 		t.Expect(err).Not().ToBeNil()
 	})
 
-	gest.Register(s)
+	s.Run(t)
 }

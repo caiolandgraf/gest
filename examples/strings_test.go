@@ -1,13 +1,14 @@
-package main
+package examples
 
 import (
 	"math"
 	"strings"
+	"testing"
 
 	"github.com/caiolandgraf/gest/gest"
 )
 
-func init() {
+func TestStrings(t *testing.T) {
 	s := gest.Describe("strings")
 
 	s.It("'Hello, World!' should contain 'World'", func(t *gest.T) {
@@ -26,5 +27,5 @@ func init() {
 		t.Expect(3.14159).ToBeCloseTo(math.Pi, 0.01)
 	})
 
-	gest.Register(s)
+	s.Run(t)
 }

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -79,7 +80,6 @@ func WatchTests(args []string) {
 		os.Exit(1)
 	}
 
-	// Remove the temp dir when the user presses Ctrl+C or the process is terminated.
 	watchSetupCleanup(tmpDir)
 
 	fmt.Println("\ngest: running tests…")
@@ -116,9 +116,6 @@ func WatchTests(args []string) {
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
 				continue
 			}
-
-			// Debounce: reset the timer on every burst event so rapid saves
-			// (e.g. auto-format on save) collapse into a single re-run.
 			mu.Lock()
 			if timer != nil {
 				timer.Stop()
@@ -138,7 +135,6 @@ func WatchTests(args []string) {
 	}
 }
 
-// watchSetupCleanup removes the temp directory on Ctrl+C or SIGTERM.
 func watchSetupCleanup(tmpDir string) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
@@ -149,8 +145,6 @@ func watchSetupCleanup(tmpDir string) {
 	}()
 }
 
-// watchBuildAndRun compiles the project into a temp binary and executes it.
-// If compilation fails the errors are printed and the run is skipped.
 func watchBuildAndRun(tmpDir string, args []string) {
 	bin := tmpDir + "/runner"
 	if runtime.GOOS == "windows" {
@@ -158,13 +152,7 @@ func watchBuildAndRun(tmpDir string, args []string) {
 	}
 
 	build := exec.Command(
-		"go",
-		"build",
-		"-trimpath",
-		"-buildvcs=false",
-		"-o",
-		bin,
-		".",
+		"go", "build", "-trimpath", "-buildvcs=false", "-o", bin, ".",
 	)
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
@@ -178,8 +166,6 @@ func watchBuildAndRun(tmpDir string, args []string) {
 	_ = cmd.Run()
 }
 
-// watchAddDirs walks the cwd and registers every sub-directory with the
-// watcher, skipping vendor and hidden directories (e.g. .git).
 func watchAddDirs(w *fsnotify.Watcher) error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -220,7 +206,7 @@ func readSnippet(file string, targetLine, context int) []string {
 	if err != nil {
 		return nil
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var lines []string
 	scanner := bufio.NewScanner(f)
@@ -313,6 +299,7 @@ func shortPath(full string) string {
 
 // T is the test context passed to each test function.
 type T struct {
+	gt       *testing.T // non-nil when running via Suite.Run
 	failed   bool
 	failures []failure
 }
@@ -320,6 +307,22 @@ type T struct {
 func (t *T) record(f failure) {
 	t.failed = true
 	t.failures = append(t.failures, f)
+	// when running under go test, forward the failure to *testing.T immediately
+	if t.gt != nil {
+		t.gt.Helper()
+		t.gt.Errorf(
+			"\n    %sexpect(received).%s(expected)%s\n\n    %sExpected:%s %v\n    %sReceived:%s %v\n",
+			dim,
+			f.matcher,
+			reset,
+			green+bold,
+			reset,
+			f.expected,
+			red+bold,
+			reset,
+			f.received,
+		)
+	}
 }
 
 // Expect starts an assertion chain on the given value.
@@ -537,8 +540,39 @@ type Suite struct {
 func Describe(name string) *Suite { return &Suite{name: name} }
 
 // It adds a test case to the suite.
-func (s *Suite) It(name string, fn func(*T)) {
+func (s *Suite) It(name string, fn func(*T)) *Suite {
 	s.tests = append(s.tests, testCase{name: name, fn: fn})
+	return s
+}
+
+// Run executes the suite using Go's native testing engine.
+// Each It() becomes a t.Run() subtest — call this inside a standard TestXxx function
+// so `go test` (and the gest CLI) can discover and run the suite with beautiful output.
+//
+//	func TestCalculator(t *testing.T) {
+//	    gest.Describe("calculator").
+//	        It("adds correctly", func(t *gest.T) {
+//	            t.Expect(calc.Add(2, 2)).ToBe(float64(4))
+//	        }).
+//	        Run(t)
+//	}
+func (s *Suite) Run(gt *testing.T) {
+	gt.Helper()
+	for _, tc := range s.tests {
+		tc := tc
+		gt.Run(tc.name, func(gt *testing.T) {
+			gt.Helper()
+			t := &T{gt: gt}
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						gt.Errorf("%spanicked: %v%s", red, r, reset)
+					}
+				}()
+				tc.fn(t)
+			}()
+		})
+	}
 }
 
 func (s *Suite) run() {
@@ -683,13 +717,13 @@ func coverageBar(pct float64, width int) string {
 	color := pctToColor(pct)
 	empty := width - filled
 
-	// rounded pip-style bar: filled ╺━━━━╸  empty ╺──────╴
 	var bar string
-	if filled == 0 {
+	switch {
+	case filled == 0:
 		bar = dim + "╺" + strings.Repeat("─", width-2) + "╴" + reset
-	} else if filled == width {
+	case filled == width:
 		bar = color + "╺" + strings.Repeat("━", width-2) + "╸" + reset
-	} else {
+	default:
 		filledPart := color + "╺" + strings.Repeat("━", filled-1)
 		emptyPart := dim + strings.Repeat("─", empty-1) + "╴" + reset
 		bar = filledPart + emptyPart
@@ -736,12 +770,8 @@ func printCoverageTable(suites []*Suite) {
 		}
 
 		fmt.Printf(" %s  %s%-*s%s  %s  %s%5.1f%%%s   %s%d/%d%s\n",
-			icon,
-			bold, maxName, s.name, reset,
-			bar,
-			pctColor, pct, reset,
-			dim, s.passed, total, reset,
-		)
+			icon, bold, maxName, s.name, reset, bar,
+			pctColor, pct, reset, dim, s.passed, total, reset)
 	}
 
 	fmt.Println(sep)
@@ -758,12 +788,8 @@ func printCoverageTable(suites []*Suite) {
 	}
 
 	fmt.Printf(" %s  %s%-*s%s  %s  %s%5.1f%%%s   %s%d/%d%s\n",
-		allIcon,
-		bold, maxName, "All suites", reset,
-		bar,
-		pctColor+bold, totalPct, reset,
-		dim, totalPassed, totalTests, reset,
-	)
+		allIcon, bold, maxName, "All suites", reset, bar,
+		pctColor+bold, totalPct, reset, dim, totalPassed, totalTests, reset)
 	fmt.Println(sep)
 	fmt.Println()
 }

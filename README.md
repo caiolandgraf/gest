@@ -4,7 +4,7 @@
 
 <h1>gest 🧪</h1>
 
-<p>A Jest-inspired testing framework for Go — beautiful output, minimal dependencies.</p>
+<p>A Jest-inspired testing library for Go — beautiful output, powered by <code>go test</code>.</p>
 
 <p>
   <a href="https://pkg.go.dev/github.com/caiolandgraf/gest">
@@ -33,12 +33,25 @@
 
 ## Motivation
 
-Go's built-in `go test` is powerful but raw. **gest** brings Jest's developer experience to Go: colored output, descriptive failure messages with code snippets, and a fluent assertion API — all with minimal setup and no config files.
+Go's built-in `go test` is powerful but its output is raw. **gest** brings Jest's developer experience to Go: a fluent assertion API (`Describe` / `It` / `Expect`), colorized output, descriptive failure messages — all running on top of the native `go test` engine so you get caching, `-race`, real coverage and full IDE support for free.
+
+## How it works
+
+gest has two parts that work together:
+
+| Part | What it does |
+|---|---|
+| **lib** `github.com/caiolandgraf/gest/gest` | Provides `Describe`, `It`, `Expect` and all matchers. You write tests with it inside standard `_test.go` files using `Suite.Run(t)`. |
+| **CLI** `github.com/caiolandgraf/gest/cmd/gest` | Runs `go test -v -json` under the hood, parses the event stream, and renders the beautiful Jest-style output. |
 
 ## Installation
 
 ```bash
+# Add the library to your project
 go get github.com/caiolandgraf/gest
+
+# Install the CLI globally
+go install github.com/caiolandgraf/gest/cmd/gest@latest
 ```
 
 ## Project structure
@@ -46,45 +59,30 @@ go get github.com/caiolandgraf/gest
 ```
 my-project/
 ├── go.mod
-├── main.go              ← just calls gest.RunRegistered()
 ├── calculator.go
-├── calculator_spec.go   ← self-registers via init()
+├── calculator_test.go   ← standard Go test file using gest's API
 ├── user.go
-└── user_spec.go         ← self-registers via init()
+└── user_test.go
 ```
 
-> **Why `_spec.go` instead of `_test.go`?**
-> The `_test.go` suffix is reserved by the Go toolchain for `go test`.
-> gest uses `go run`, so any other suffix works — `_spec.go` is a common convention.
+> **Standard `_test.go` files.** gest now works with Go's native test convention.
+> The `go test` toolchain discovers and runs them — gest just makes writing and
+> reading them a pleasure.
 
 ## Basic usage
 
-**`main.go`** — doesn't need to know which spec files exist:
+**`calculator_test.go`** — write tests with the Jest-style API, run them with `Suite.Run(t)`:
 
 ```go
-package main
+package mypackage
 
 import (
-    "os"
+    "testing"
 
     "github.com/caiolandgraf/gest/gest"
 )
 
-func main() {
-    if !gest.RunRegistered() {
-        os.Exit(1)
-    }
-}
-```
-
-**`calculator_spec.go`** — each file self-registers:
-
-```go
-package main
-
-import "github.com/caiolandgraf/gest/gest"
-
-func init() {
+func TestCalculator(t *testing.T) {
     calc := Calculator{}
     s := gest.Describe("calculator")
 
@@ -97,44 +95,49 @@ func init() {
         t.Expect(err).Not().ToBeNil()
     })
 
-    gest.Register(s)
+    s.Run(t)
 }
 ```
 
-**Run:**
+**Run with the gest CLI** to get the beautiful output:
 
 ```bash
-go run .           # run all tests
-go run . -c        # run with coverage table
+gest ./...
+```
+
+**Or use plain `go test`** — everything still works, just without the colors:
+
+```bash
+go test ./...
 ```
 
 ## Watch mode
 
-Pass `--watch` (or `-w`) to enter watch mode. gest compiles your project into a temporary binary (in your OS temp directory), runs it immediately, then re-runs it automatically whenever any `.go` file changes.
+Pass `--watch` (or `-w`) to enter watch mode. gest re-runs `go test` automatically whenever any `.go` file changes — no recompilation overhead, just the native `go test` cache at full speed.
 
 ```bash
-go run . --watch         # watch mode
-go run . -w              # shorthand
-go run . --watch -c      # watch + coverage
+gest --watch          # watch mode
+gest -w               # shorthand
+gest --watch -c       # watch + coverage table
 ```
 
-- Rapid saves are collapsed via a **200 ms debounce** — one clean result per save, never a burst.
+- Rapid saves are collapsed via a **30 ms debounce** — one clean result per save.
 - The terminal is **cleared** before each re-run so the output is always fresh.
-- The temporary binary is **automatically removed** when you press `Ctrl+C`.
-- No artifacts are left in your project directory.
+- Press `Ctrl+C` to stop.
 
 ## Failure messages
 
-When a test fails, gest shows exactly what went wrong — just like Jest:
+When a test fails, gest shows exactly what went wrong:
 
-![gest failure message with code snippet](.github/images/failure.png)
+![gest failure message](.github/images/failure.png)
 
 ## Coverage
 
-Pass `-c` or `--coverage` to display the per-suite pass rate:
+Pass `-c` or `--coverage` to display the per-suite pass rate table:
 
 ```bash
-go run . -c
+gest -c
+gest --coverage
 ```
 
 ![gest coverage table with pip-style progress bars](.github/images/coverage.png)
@@ -169,42 +172,55 @@ t.Expect(result).Not().ToBe(float64(0))
 ## Full API
 
 ```go
-// Create a test suite
+// Create a suite
 s := gest.Describe("suite name")
 
-// Add a test case
+// Add test cases — It() returns *Suite for chaining
 s.It("description", func(t *gest.T) {
     t.Expect(value).ToBe(expected)
 })
 
-// Register the suite with the global runner
-gest.Register(s)
+// Run all Its as subtests under a standard *testing.T
+func TestMyFeature(t *testing.T) {
+    s := gest.Describe("my feature")
+    s.It("does something", func(t *gest.T) { ... })
+    s.Run(t) // hands off to go test
+}
 
-// In main.go: run everything that was registered
-gest.RunRegistered()
-
-// Or, for manual control:
-gest.RunAll(suite1, suite2, suite3)
+// Fluent chaining
+gest.Describe("calculator").
+    It("adds", func(t *gest.T) { ... }).
+    It("subtracts", func(t *gest.T) { ... }).
+    Run(t)
 ```
 
 ## Example
 
-See the [`examples/`](./examples) folder for a working project with multiple spec files.
+See the [`examples/`](./examples) folder for a working project.
 
 ```bash
 cd examples
-go run .
-go run . -c
-go run . --watch
+
+# Run with the beautiful gest output
+go run ../cmd/gest ./...
+
+# Or plain go test
+go test ./...
+
+# With coverage table
+go run ../cmd/gest -c ./...
+
+# Watch mode
+go run ../cmd/gest --watch
 ```
 
 ## Philosophy
 
-- **Minimal dependencies** — only [fsnotify](https://github.com/fsnotify/fsnotify) for watch mode; the core runner is stdlib only
-- **Zero config** — no config files, no separate CLI
-- **Auto-discovery** via `init()` — just add a `_spec.go` file and it runs
-- **Beautiful output** — colors, code snippets, progress bars
+- **Powered by `go test`** — caching, `-race` detector, real line coverage, IDE support, all for free
 - **Familiar API** — if you know Jest, you already know gest
+- **Beautiful output** — colors, progress bars, failure diffs
+- **Zero friction** — standard `_test.go` files, no config, no separate test binary
+- **Minimal dependencies** — only [fsnotify](https://github.com/fsnotify/fsnotify) for watch mode
 
 ## License
 
@@ -213,8 +229,6 @@ MIT
 ---
 
 ## Contributors
-
-<!-- Feel free to open a PR and add yourself here! -->
 
 | | Name |
 |---|---|

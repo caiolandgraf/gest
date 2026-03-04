@@ -98,28 +98,27 @@
             </h2>
           </div>
           <p>
-            gest has <strong>zero external dependencies</strong>. Installing it
-            is a single command and it will never pollute your
-            <code>go.sum</code>.
+            gest has two parts: the <strong>library</strong> you import in your
+            test files, and the <strong>CLI</strong> that renders beautiful
+            output by running <code>go test -json</code> under the hood.
           </p>
           <div class="code-block">
             <div class="code-block__header">
               <span class="code-block__lang">bash</span>
               <button
                 class="code-block__copy"
-                @click="copy('go get github.com/caiolandgraf/gest', 'install')"
+                @click="copy(installCode, 'install')"
               >
                 {{ copied === 'install' ? '✓ Copied' : 'Copy' }}
               </button>
             </div>
-            <pre><code class="language-bash">go get github.com/caiolandgraf/gest</code></pre>
+            <pre><code class="language-bash">{{ installCode }}</code></pre>
           </div>
           <div class="docs-callout docs-callout--info">
             <span class="docs-callout__icon">💡</span>
             <div>
-              <strong>Requires Go 1.18+.</strong> The core runner is stdlib
-              only. <code>fsnotify</code> is added as the single external
-              dependency to power watch mode.
+              <strong>Requires Go 1.21+.</strong> The only external dependency
+              is <code>fsnotify</code>, used solely to power watch mode.
             </div>
           </div>
         </section>
@@ -141,9 +140,10 @@
             </h2>
           </div>
           <p>
-            gest is designed to live alongside your production code, not in a
-            separate test binary. Use <code>_spec.go</code> files instead of
-            <code>_test.go</code> — they're picked up by <code>go run</code>.
+            gest works with standard Go test files. No separate test binary, no
+            <code>main.go</code> boilerplate — just regular
+            <code>_test.go</code> files that <code>go test</code> already knows
+            about.
           </p>
           <div class="code-block">
             <div class="code-block__header">
@@ -151,23 +151,18 @@
             </div>
             <pre><code>my-project/
 ├── go.mod
-├── main.go              ← just calls gest.RunRegistered()
 ├── calculator.go
-├── calculator_spec.go   ← self-registers via init()
+├── calculator_test.go   ← standard _test.go using gest's API
 ├── user.go
-└── user_spec.go         ← self-registers via init()</code></pre>
+└── user_test.go</code></pre>
           </div>
-          <div class="docs-callout docs-callout--warning">
-            <span class="docs-callout__icon">⚠️</span>
+          <div class="docs-callout docs-callout--tip">
+            <span class="docs-callout__icon">✅</span>
             <div>
-              <strong
-                >Why <code>_spec.go</code> instead of
-                <code>_test.go</code>?</strong
-              ><br />
-              The <code>_test.go</code> suffix is reserved by the Go toolchain
-              for <code>go test</code>. gest uses <code>go run</code>, so any
-              other suffix works — <code>_spec.go</code> is the recommended
-              convention.
+              <strong>Standard <code>_test.go</code> files.</strong> gest now
+              uses Go's native test convention. The
+              <code>go test</code> toolchain discovers and runs them — gest just
+              makes writing and reading them a pleasure.
             </div>
           </div>
         </section>
@@ -189,32 +184,13 @@
             </h2>
           </div>
           <p>
-            Your <code>main.go</code> stays simple forever — it never needs to
-            import individual spec files. Each <code>_spec.go</code> registers
-            itself via <code>init()</code>.
+            Create a standard <code>_test.go</code> file. Use
+            <code>Describe</code> to group tests, <code>It</code> to define
+            cases, and call <code>s.Run(t)</code> at the end to hand off to Go's
+            test engine.
           </p>
 
-          <h3 class="docs-subsection-title">main.go</h3>
-          <div class="code-block">
-            <div class="code-block__header">
-              <span class="code-block__lang">go</span>
-              <button
-                class="code-block__copy"
-                @click="copy(mainGoCode, 'main')"
-              >
-                {{ copied === 'main' ? '✓ Copied' : 'Copy' }}
-              </button>
-            </div>
-            <pre><code class="language-go">{{ mainGoCode }}</code></pre>
-          </div>
-
-          <h3 class="docs-subsection-title">calculator_spec.go</h3>
-          <p>
-            Each spec file self-registers via <code>init()</code>. The suite is
-            created with <code>Describe</code>, test cases are added with
-            <code>It</code>, and the whole suite is handed to the global runner
-            with <code>Register</code>.
-          </p>
+          <h3 class="docs-subsection-title">calculator_test.go</h3>
           <div class="code-block">
             <div class="code-block__header">
               <span class="code-block__lang">go</span>
@@ -223,6 +199,15 @@
               </button>
             </div>
             <pre><code class="language-go">{{ specCode }}</code></pre>
+          </div>
+          <div class="docs-callout docs-callout--info">
+            <span class="docs-callout__icon">💡</span>
+            <div>
+              <code>s.Run(t)</code> iterates every <code>It()</code> and calls
+              <code>t.Run()</code> under the hood — each case becomes a native
+              Go subtest, fully compatible with <code>-run</code>,
+              <code>-race</code> and coverage flags.
+            </div>
           </div>
         </section>
 
@@ -243,9 +228,9 @@
             </h2>
           </div>
           <p>
-            Use <code>go run .</code> from your project root. Pass
-            <code>-c</code> or <code>--coverage</code> to also display the
-            coverage table.
+            Run the <code>gest</code> CLI from your project root for the
+            beautiful output. Plain <code>go test</code> still works too — gest
+            is purely additive.
           </p>
           <div class="code-block">
             <div class="code-block__header">
@@ -288,9 +273,9 @@
           </div>
           <p>
             Pass <code>--watch</code> (or <code>-w</code>) to enter watch mode.
-            gest compiles your project into a temporary binary in your OS temp
-            directory, runs it immediately, then re-runs it automatically
-            whenever any <code>.go</code> file changes.
+            gest re-runs <code>go test</code> automatically whenever any
+            <code>.go</code> file changes — no recompilation overhead, just the
+            native <code>go test</code> cache at full speed.
           </p>
           <div class="code-block">
             <div class="code-block__header">
@@ -307,19 +292,17 @@
           <div class="docs-callout docs-callout--info">
             <span class="docs-callout__icon">⚡</span>
             <div>
-              <strong>Debounced re-runs.</strong> Rapid saves (e.g. auto-format
-              on save) are collapsed into a single re-run via a 200 ms debounce
-              — so you always see one clean result, never a burst.
+              <strong>Debounced re-runs.</strong> Rapid saves are collapsed into
+              a single re-run via a 30 ms debounce — one clean result per save,
+              never a burst.
             </div>
           </div>
           <div class="docs-callout docs-callout--tip">
             <span class="docs-callout__icon">🧹</span>
             <div>
-              The terminal is <strong>fully cleared</strong> (including
-              scrollback) before each re-run. The compiled binary is written to
-              your OS temp directory and
-              <strong>automatically removed</strong> when you press
-              <kbd>Ctrl+C</kbd> — no artifacts are left in your project.
+              The terminal is <strong>fully cleared</strong> before each re-run.
+              Press <kbd>Ctrl+C</kbd> to stop — no artifacts are left in your
+              project.
             </div>
           </div>
         </section>
@@ -551,7 +534,7 @@ go run . --coverage</code></pre>
             </h2>
           </div>
           <p>
-            All exported symbols in
+            All exported symbols in the library
             <code>github.com/caiolandgraf/gest/gest</code>:
           </p>
 
@@ -637,8 +620,8 @@ go run . --coverage</code></pre>
             </h2>
           </div>
           <p>
-            A complete, runnable example is included in the repository under the
-            <code>example/</code> directory.
+            A complete, runnable example is included in the repository under
+            <code>examples/</code>.
           </p>
           <div class="code-block">
             <div class="code-block__header">
@@ -783,6 +766,13 @@ const navGroups = [
   }
 ]
 
+/* ── Install code ──────────────────────────────────────────────────────────── */
+const installCode = `# install the gest CLI globally
+go install github.com/caiolandgraf/gest/cmd/gest@latest
+
+# add the library to your project
+go get github.com/caiolandgraf/gest`
+
 /* ── Terminal lines ────────────────────────────────────────────────────────── */
 
 const panicLines = [
@@ -858,24 +848,14 @@ const apiFunctions = [
     example: `s := gest.Describe("calculator")`
   },
   {
-    signature: '(*Suite).It(name string, fn func(*T))',
-    desc: 'Adds a test case to the suite. The function receives a *T used to make assertions.',
+    signature: '(*Suite).It(name string, fn func(*T)) *Suite',
+    desc: 'Adds a test case to the suite. Returns *Suite for chaining. The function receives a *T used to make assertions.',
     example: `s.It("adds correctly", func(t *gest.T) {\n    t.Expect(add(1, 2)).ToBe(float64(3))\n})`
   },
   {
-    signature: 'gest.Register(s *Suite)',
-    desc: 'Adds a suite to the global registry. Call this at the end of init() in each spec file.',
-    example: `gest.Register(s)`
-  },
-  {
-    signature: 'gest.RunRegistered() bool',
-    desc: 'Runs all suites registered via Register(). Returns true if all tests passed. Call this in main().',
-    example: `func main() { gest.RunRegistered() }`
-  },
-  {
-    signature: 'gest.RunAll(suites ...*Suite) bool',
-    desc: 'Runs the provided suites manually, without the global registry. Useful for fine-grained control.',
-    example: `gest.RunAll(suite1, suite2)`
+    signature: '(*Suite).Run(t *testing.T)',
+    desc: 'Executes all It() cases as native go test subtests via t.Run(). Call this at the end of any TestXxx function.',
+    example: `func TestCalculator(t *testing.T) {\n    s := gest.Describe("calculator")\n    s.It("adds", func(t *gest.T) { ... })\n    s.Run(t)\n}`
   },
   {
     signature: '(*T).Expect(v interface{}) *Expectation',
@@ -892,24 +872,24 @@ const apiFunctions = [
 /* ── Philosophy ────────────────────────────────────────────────────────────── */
 const philosophy = [
   {
-    icon: '📦',
-    title: 'Minimal dependencies',
-    desc: 'The core runner is stdlib only. The single external dependency (fsnotify) exists solely to power watch mode.'
+    icon: '⚡',
+    title: 'Powered by go test',
+    desc: 'Native caching, -race detector, real line coverage and IDE support — all for free. gest just makes the output beautiful.'
   },
   {
     icon: '⚙️',
     title: 'Zero config',
-    desc: 'No config files, no separate CLI, no setup rituals. Drop in the file and run.'
+    desc: 'Standard _test.go files. No config files, no separate test binary, no setup rituals.'
   },
   {
-    icon: '🔮',
-    title: 'Auto-discovery',
-    desc: 'Spec files self-register via init(). main.go never needs to import individual spec files.'
+    icon: '🔗',
+    title: 'Standard tooling',
+    desc: 'go test ./... still works. gest is purely additive — it never takes anything away from the Go toolchain.'
   },
   {
     icon: '🎨',
     title: 'Beautiful output',
-    desc: 'Colors, code snippets, timing, and progress bars. Your testing experience should be joyful.'
+    desc: 'Colors, progress bars, and failure diffs. Your testing experience should be joyful.'
   },
   {
     icon: '🤝',
@@ -919,19 +899,14 @@ const philosophy = [
 ]
 
 /* ── Code samples ──────────────────────────────────────────────────────────── */
-const mainGoCode = `package main
+const specCode = `package mypackage
 
-import "github.com/caiolandgraf/gest/gest"
+import (
+    "testing"
+    "github.com/caiolandgraf/gest/gest"
+)
 
-func main() {
-    gest.RunRegistered()
-}`
-
-const specCode = `package main
-
-import "github.com/caiolandgraf/gest/gest"
-
-func init() {
+func TestCalculator(t *testing.T) {
     calc := Calculator{}
     s := gest.Describe("calculator")
 
@@ -944,78 +919,81 @@ func init() {
         t.Expect(err).Not().ToBeNil()
     })
 
-    gest.Register(s)
+    s.Run(t)
 }`
 
-const runCode = `go run .           # run all tests
-go run . -c        # run with coverage table
-go run . --coverage`
+const runCode = `gest ./...           # beautiful gest output
+gest -c ./...        # with coverage table
+go test ./...        # plain go test also works`
 
-const watchCode = `go run . --watch         # watch mode — re-runs on every .go change
-go run . -w              # shorthand
-go run . --watch -c      # watch + coverage`
+const watchCode = `gest --watch          # watch mode — re-runs on every .go change
+gest -w               # shorthand
+gest --watch -c       # watch + coverage table`
 
-const matchersExampleCode = `s.It("demonstrates all matchers", func(t *gest.T) {
-    // Strict equality
-    t.Expect(2 + 2).ToBe(float64(4))
+const matchersExampleCode = `func TestMatchers(t *testing.T) {
+    s := gest.Describe("all matchers")
 
-    // Deep equality (structs, slices, maps)
-    t.Expect([]int{1, 2, 3}).ToEqual([]int{1, 2, 3})
+    s.It("demonstrates all matchers", func(t *gest.T) {
+        // Strict equality
+        t.Expect(2 + 2).ToBe(float64(4))
 
-    // Nil check
-    var err error
-    t.Expect(err).ToBeNil()
+        // Deep equality (structs, slices, maps)
+        t.Expect([]int{1, 2, 3}).ToEqual([]int{1, 2, 3})
 
-    // Boolean
-    t.Expect(true).ToBeTrue()
-    t.Expect(false).ToBeFalse()
+        // Nil check
+        var err error
+        t.Expect(err).ToBeNil()
 
-    // String contains
-    t.Expect("hello world").ToContain("world")
+        // Boolean
+        t.Expect(true).ToBeTrue()
+        t.Expect(false).ToBeFalse()
 
-    // Length
-    t.Expect([]string{"a", "b"}).ToHaveLength(2)
+        // String contains
+        t.Expect("hello world").ToContain("world")
 
-    // Numeric comparisons
-    t.Expect(float64(10)).ToBeGreaterThan(5)
-    t.Expect(float64(3)).ToBeLessThan(10)
+        // Length
+        t.Expect([]string{"a", "b"}).ToHaveLength(2)
 
-    // Float approximation (default delta: ±0.001)
-    t.Expect(math.Pi).ToBeCloseTo(3.14159, 0.001)
-})`
+        // Numeric comparisons
+        t.Expect(float64(10)).ToBeGreaterThan(5)
+        t.Expect(float64(3)).ToBeLessThan(10)
 
-const negationCode = `s.It("uses negation", func(t *gest.T) {
-    // Any matcher can be negated with .Not()
-    _, err := calc.Divide(10, 0)
-    t.Expect(err).Not().ToBeNil()
+        // Float approximation (default delta: ±0.001)
+        t.Expect(math.Pi).ToBeCloseTo(3.14159, 0.001)
+    })
 
-    t.Expect("gest").Not().ToContain("jest")
+    s.Run(t)
+}`
 
-    result, _ := calc.Divide(10, 2)
-    t.Expect(result).Not().ToBe(float64(0))
+const negationCode = `func TestNegation(t *testing.T) {
+    s := gest.Describe("negation")
 
-    t.Expect([]int{1, 2}).Not().ToHaveLength(5)
-})`
+    s.It("uses negation", func(t *gest.T) {
+        // Any matcher can be negated with .Not()
+        _, err := calc.Divide(10, 0)
+        t.Expect(err).Not().ToBeNil()
 
-const fullApiCode = `// ── main.go ─────────────────────────────────────────────────────────
-package main
+        t.Expect("gest").Not().ToContain("jest")
 
-import "github.com/caiolandgraf/gest/gest"
+        result, _ := calc.Divide(10, 2)
+        t.Expect(result).Not().ToBe(float64(0))
 
-func main() {
-    // Option A: run everything registered via init()
-    gest.RunRegistered()
+        t.Expect([]int{1, 2}).Not().ToHaveLength(5)
+    })
 
-    // Option B: manually specify which suites to run
-    // gest.RunAll(suite1, suite2, suite3)
-}
+    s.Run(t)
+}`
 
-// ── calculator_spec.go ───────────────────────────────────────────────
-package main
+const fullApiCode = `package mypackage
 
-import "github.com/caiolandgraf/gest/gest"
+import (
+    "testing"
+    "github.com/caiolandgraf/gest/gest"
+)
 
-func init() {
+// ── calculator_test.go ───────────────────────────────────────────────
+
+func TestCalculator(t *testing.T) {
     calc := Calculator{}
     s := gest.Describe("calculator")
 
@@ -1034,18 +1012,30 @@ func init() {
         t.Expect(err).Not().ToBeNil()
     })
 
-    gest.Register(s)
+    s.Run(t) // hands off to go test
+}
+
+// ── fluent chaining ──────────────────────────────────────────────────
+
+func TestFluent(t *testing.T) {
+    gest.Describe("fluent").
+        It("first", func(t *gest.T) { ... }).
+        It("second", func(t *gest.T) { ... }).
+        Run(t)
 }`
 
 const exampleRunCode = `# Clone the repository
 git clone https://github.com/caiolandgraf/gest.git
-cd gest/example
+cd gest/examples
 
-# Run the example tests
-go run .
+# Run with beautiful gest output
+go run ../cmd/gest ./...
 
-# Run with coverage table
-go run . -c`
+# With coverage table
+go run ../cmd/gest -c ./...
+
+# Or plain go test
+go test ./...`
 </script>
 
 <style scoped>

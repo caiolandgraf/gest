@@ -14,7 +14,7 @@
             style="animation-delay: 0ms"
           >
             <span class="badge badge--green badge--dot"
-              >v1.1.0 — Now available</span
+              >v2.0.0 — Now powered by go test</span
             >
             <a
               href="https://github.com/caiolandgraf/gest"
@@ -58,10 +58,10 @@
             style="animation-delay: 120ms"
           >
             <strong>gest</strong> 🧪 brings Jest's legendary developer
-            experience to Go — colored output, descriptive failure messages with
-            code snippets, a fluent assertion API, and a beautiful coverage
-            table. All in a single file with
-            <strong>minimal dependencies</strong>.
+            experience to Go — a fluent <code>Describe</code> /
+            <code>It</code> / <code>Expect</code> API, colorized output, and a
+            beautiful coverage table. All powered by
+            <strong>native <code>go test</code></strong> under the hood.
           </p>
 
           <div
@@ -113,7 +113,7 @@
             <div class="hero__install-inner" @click="copyInstall">
               <span class="hero__install-prompt">$</span>
               <code class="hero__install-cmd"
-                >go get github.com/caiolandgraf/gest</code
+                >go install github.com/caiolandgraf/gest/cmd/gest@latest</code
               >
               <span
                 class="hero__install-copy"
@@ -454,7 +454,7 @@ const copiedKey = ref(null)
 
 function copyInstall() {
   navigator.clipboard
-    .writeText('go get github.com/caiolandgraf/gest')
+    .writeText('go install github.com/caiolandgraf/gest/cmd/gest@latest')
     .then(() => {
       installCopied.value = true
       setTimeout(() => {
@@ -475,8 +475,8 @@ function copyCode(text, key) {
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 const stats = [
   { value: '10', label: 'Built-in matchers' },
-  { value: '0', label: 'External dependencies' },
-  { value: '1', label: 'File to add' },
+  { value: '1', label: 'External dependency' },
+  { value: '0', label: 'Config files needed' },
   { value: '∞', label: 'Tests you can write' }
 ]
 
@@ -486,13 +486,13 @@ const features = [
     icon: '🎨',
     iconBg: 'rgba(63, 185, 80, 0.1)',
     title: 'Beautiful output',
-    desc: 'Colorized, structured terminal output inspired by Jest. Pass/fail badges, test names, timing — all perfectly formatted.'
+    desc: 'Colorized, structured terminal output inspired by Jest. Pass/fail badges, test names, timing — all perfectly formatted by the gest CLI.'
   },
   {
-    icon: '📦',
+    icon: '⚡',
     iconBg: 'rgba(88, 166, 255, 0.1)',
-    title: 'Minimal dependencies',
-    desc: 'Core runner is stdlib only. fsnotify is the single external dep, used exclusively for watch mode.'
+    title: 'Powered by go test',
+    desc: 'Runs on top of the native go test engine — you get caching, -race detector, real line coverage and full IDE support for free.'
   },
   {
     icon: '🔗',
@@ -503,8 +503,8 @@ const features = [
   {
     icon: '🔍',
     iconBg: 'rgba(227, 179, 65, 0.1)',
-    title: 'Inline code snippets',
-    desc: 'Failed assertions print the exact source line that triggered them, with context lines around it — no guessing.'
+    title: 'Descriptive failures',
+    desc: 'Failed assertions show Expected vs Received with ANSI colors — forwarded cleanly through go test output.'
   },
   {
     icon: '📊',
@@ -513,31 +513,36 @@ const features = [
     desc: 'Run with -c to get a per-suite pass-rate table with pip-style progress bars and color-coded thresholds.'
   },
   {
-    icon: '⚡',
+    icon: '👁️',
     iconBg: 'rgba(248, 81, 73, 0.1)',
-    title: 'Auto-discovery via init()',
-    desc: 'Add a _spec.go file, call gest.Register(s) in init(), and it just runs. main.go never needs to know what changed.'
+    title: 'Watch mode',
+    desc: 'gest --watch re-runs go test on every .go change. No recompile overhead — just the native go test cache at full speed.'
   }
 ]
 
 /* ── Matcher code sample ───────────────────────────────────────────────────── */
-const matcherCode = `s := gest.Describe("calculator")
+const matcherCode = `func TestCalculator(t *testing.T) {
+  calc := Calculator{}
+  s := gest.Describe("calculator")
 
-s.It("adds correctly", func(t *gest.T) {
-  t.Expect(calc.Add(2, 2)).ToBe(float64(4))
-})
+  s.It("adds correctly", func(t *gest.T) {
+    t.Expect(calc.Add(2, 2)).ToBe(float64(4))
+  })
 
-s.It("does not divide by zero", func(t *gest.T) {
-  _, err := calc.Divide(10, 0)
-  t.Expect(err).Not().ToBeNil()
-})
+  s.It("does not divide by zero", func(t *gest.T) {
+    _, err := calc.Divide(10, 0)
+    t.Expect(err).Not().ToBeNil()
+  })
 
-s.It("result is within range", func(t *gest.T) {
-  r := calc.Add(1.0, 1.0)
-  t.Expect(r).ToBeGreaterThan(1.5)
-  t.Expect(r).ToBeLessThan(2.5)
-  t.Expect(r).ToBeCloseTo(2.0, 0.01)
-})`
+  s.It("result is within range", func(t *gest.T) {
+    r := calc.Add(1.0, 1.0)
+    t.Expect(r).ToBeGreaterThan(1.5)
+    t.Expect(r).ToBeLessThan(2.5)
+    t.Expect(r).ToBeCloseTo(2.0, 0.01)
+  })
+
+  s.Run(t)
+}`
 
 /* ── Failure features list ─────────────────────────────────────────────────── */
 const failureFeatures = [
@@ -551,29 +556,25 @@ const failureFeatures = [
 /* ── Quick start steps ─────────────────────────────────────────────────────── */
 const quickstartSteps = [
   {
-    title: 'Install gest',
+    title: 'Install the CLI',
     lang: 'bash',
-    code: `go get github.com/caiolandgraf/gest`
+    code: `# install the gest CLI globally
+go install github.com/caiolandgraf/gest/cmd/gest@latest
+
+# add the library to your project
+go get github.com/caiolandgraf/gest`
   },
   {
-    title: 'Create your main.go',
+    title: 'Write a test file',
     lang: 'Go',
-    code: `package main
+    code: `package mypackage
 
-import "github.com/caiolandgraf/gest/gest"
+import (
+    "testing"
+    "github.com/caiolandgraf/gest/gest"
+)
 
-func main() {
-    gest.RunRegistered()
-}`
-  },
-  {
-    title: 'Write a spec file',
-    lang: 'Go',
-    code: `package main
-
-import "github.com/caiolandgraf/gest/gest"
-
-func init() {
+func TestCalculator(t *testing.T) {
     s := gest.Describe("calculator")
 
     s.It("adds 2 + 2", func(t *gest.T) {
@@ -585,44 +586,51 @@ func init() {
         t.Expect(err).Not().ToBeNil()
     })
 
-    gest.Register(s)
+    s.Run(t)
 }`
   },
   {
-    title: 'Run your tests',
+    title: 'Run with beautiful output',
     lang: 'bash',
-    code: `go run .           # run all tests
-go run . -c        # run with coverage table
-go run . --watch   # watch mode — re-run on every .go change`
+    code: `gest ./...           # beautiful gest output
+gest -c ./...        # with coverage table
+gest --watch ./...   # watch mode`
+  },
+  {
+    title: 'Or use plain go test',
+    lang: 'bash',
+    code: `go test ./...        # standard go test still works
+go test -v ./...     # verbose
+go test -race ./...  # race detector — works natively!`
   }
 ]
 
 /* ── Philosophy pillars ────────────────────────────────────────────────────── */
 const pillars = [
   {
-    icon: '📦',
-    title: 'Minimal dependencies',
-    desc: 'Core runner is stdlib only. The single external dep (fsnotify) powers watch mode and nothing else.'
+    icon: '⚡',
+    title: 'Powered by go test',
+    desc: 'Native caching, -race, real coverage and IDE support — all for free. gest just makes the output beautiful.'
   },
   {
     icon: '⚙️',
     title: 'Zero config',
-    desc: 'No config files, no separate CLI, no flags to learn. It just works.'
+    desc: 'Standard _test.go files. No config files, no separate test binary, no setup rituals.'
   },
   {
-    icon: '🔮',
-    title: 'Auto-discovery',
-    desc: 'Spec files self-register via init(). Adding a test is as simple as adding a file.'
+    icon: '🔗',
+    title: 'Standard tooling',
+    desc: 'go test ./... still works. gest is additive — it never takes anything away.'
   },
   {
     icon: '🎨',
     title: 'Beautiful output',
-    desc: 'Colors, code snippets, and progress bars. Testing should be a pleasure.'
+    desc: 'Colors, progress bars, and failure diffs. Testing should be a pleasure.'
   },
   {
     icon: '🤝',
     title: 'Familiar API',
-    desc: 'If you know Jest, you already know gest. The learning curve is a speed bump.'
+    desc: 'If you know Jest, you already know gest. The mental model is identical.'
   }
 ]
 </script>

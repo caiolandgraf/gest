@@ -1,4 +1,4 @@
-module examples
+module github.com/caiolandgraf/gest/examples
 
 go 1.25.7
 
