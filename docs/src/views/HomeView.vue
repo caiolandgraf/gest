@@ -14,7 +14,7 @@
             style="animation-delay: 0ms"
           >
             <span class="badge badge--green badge--dot"
-              >v2.0.0 — Now powered by go test</span
+              >v2.0.3 — Now powered by go test</span
             >
             <a
               href="https://github.com/caiolandgraf/gest"
@@ -113,7 +113,8 @@
             <div class="hero__install-inner" @click="copyInstall">
               <span class="hero__install-prompt">$</span>
               <code class="hero__install-cmd"
-                >go install github.com/caiolandgraf/gest/cmd/gest@latest</code
+                >go install
+                github.com/caiolandgraf/gest/v2/cmd/gest@latest</code
               >
               <span
                 class="hero__install-copy"
@@ -454,7 +455,7 @@ const copiedKey = ref(null)
 
 function copyInstall() {
   navigator.clipboard
-    .writeText('go install github.com/caiolandgraf/gest/cmd/gest@latest')
+    .writeText('go install github.com/caiolandgraf/gest/v2/cmd/gest@latest')
     .then(() => {
       installCopied.value = true
       setTimeout(() => {
@@ -559,10 +560,10 @@ const quickstartSteps = [
     title: 'Install the CLI',
     lang: 'bash',
     code: `# install the gest CLI globally
-go install github.com/caiolandgraf/gest/cmd/gest@latest
+go install github.com/caiolandgraf/gest/v2/cmd/gest@latest
 
 # add the library to your project
-go get github.com/caiolandgraf/gest`
+go get github.com/caiolandgraf/gest/v2`
   },
   {
     title: 'Write a test file',
@@ -571,7 +572,7 @@ go get github.com/caiolandgraf/gest`
 
 import (
     "testing"
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestCalculator(t *testing.T) {

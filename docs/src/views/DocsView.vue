@@ -102,6 +102,18 @@
             test files, and the <strong>CLI</strong> that renders beautiful
             output by running <code>go test -json</code> under the hood.
           </p>
+          <div class="docs-callout docs-callout--warning">
+            <span class="docs-callout__icon">📦</span>
+            <div>
+              <strong>v2 module path.</strong> Since v2, the import path
+              includes the major version suffix —
+              <code>github.com/caiolandgraf/gest/v2/gest</code>. If you're
+              upgrading from v1, see the
+              <a href="#migration" @click.prevent="scrollTo('migration')"
+                >migration guide</a
+              >.
+            </div>
+          </div>
           <div class="code-block">
             <div class="code-block__header">
               <span class="code-block__lang">bash</span>
@@ -535,7 +547,7 @@ go run . --coverage</code></pre>
           </div>
           <p>
             All exported symbols in the library
-            <code>github.com/caiolandgraf/gest/gest</code>:
+            <code>github.com/caiolandgraf/gest/v2/gest</code>:
           </p>
 
           <div class="api-grid">
@@ -605,7 +617,6 @@ go run . --coverage</code></pre>
 
         <hr class="docs-divider" />
 
-        <!-- ── Example project ─────────────────────────────────────────────── -->
         <!-- ── Migration ──────────────────────────────────────────────────── -->
         <section class="docs-section" id="migration">
           <div class="docs-section__anchor-header">
@@ -721,7 +732,8 @@ go run . --coverage</code></pre>
             <li>
               <strong>Install the CLI</strong>:
               <code
-                >go install github.com/caiolandgraf/gest/cmd/gest@latest</code
+                >go install
+                github.com/caiolandgraf/gest/v2/cmd/gest@latest</code
               >
             </li>
             <li>
@@ -730,6 +742,79 @@ go run . --coverage</code></pre>
               work.
             </li>
           </ol>
+        </section>
+
+        <hr class="docs-divider" />
+
+        <!-- ── Changelog ──────────────────────────────────────────────────── -->
+        <section class="docs-section" id="changelog">
+          <div class="docs-section__anchor-header">
+            <h2 class="docs-section__title">
+              <a
+                href="#changelog"
+                class="docs-anchor"
+                @click.prevent="scrollTo('changelog')"
+                aria-label="Link to Changelog"
+                >#</a
+              >
+              Changelog
+            </h2>
+          </div>
+
+          <h3 class="docs-subsection-title">
+            v2.0.3 — Fix: one suite per Describe
+          </h3>
+          <ul class="migration-steps">
+            <li>
+              <strong
+                >CLI now renders one suite per <code>Describe()</code></strong
+              >
+              instead of grouping everything under the package name.
+            </li>
+            <li>
+              The <code>Describe("name")</code> label is correctly shown as the
+              suite header.
+            </li>
+            <li>
+              Each <code>It()</code> description is listed as an individual item
+              under its suite.
+            </li>
+            <li>
+              Duplicate subtest names (Go's <code>#01</code> suffix) are
+              collapsed cleanly.
+            </li>
+          </ul>
+
+          <h3 class="docs-subsection-title">
+            v2.0.0 — Rewrite: powered by go test
+          </h3>
+          <ul class="migration-steps">
+            <li>
+              <strong>Dropped</strong> <code>*_spec.go</code> /
+              <code>init()</code> / <code>Register()</code> /
+              <code>RunRegistered()</code> — no more separate test binary.
+            </li>
+            <li>
+              <strong>Standard <code>_test.go</code> files</strong> — fully
+              compatible with <code>go test</code>, <code>-race</code>, IDE
+              support and caching.
+            </li>
+            <li>
+              <strong>New CLI</strong> (<code>cmd/gest</code>) replaces
+              <code>go run .</code> — runs <code>go test -v -json</code> under
+              the hood and renders beautiful Jest-style output.
+            </li>
+            <li>
+              <strong>Module path updated</strong> to
+              <code>github.com/caiolandgraf/gest/v2</code> following Go's major
+              version convention.
+            </li>
+            <li>
+              The assertion API (<code>Describe</code>, <code>It</code>,
+              <code>Expect</code>, all matchers) is
+              <strong>fully unchanged</strong>.
+            </li>
+          </ul>
         </section>
 
         <hr class="docs-divider" />
@@ -894,16 +979,19 @@ const navGroups = [
   },
   {
     label: 'Migration',
-    items: [{ id: 'migration', label: 'Migrating from v1' }]
+    items: [
+      { id: 'migration', label: 'Migrating from v1' },
+      { id: 'changelog', label: 'Changelog' }
+    ]
   }
 ]
 
 /* ── Install code ──────────────────────────────────────────────────────────── */
 const installCode = `# install the gest CLI globally
-go install github.com/caiolandgraf/gest/cmd/gest@latest
+go install github.com/caiolandgraf/gest/v2/cmd/gest@latest
 
 # add the library to your project
-go get github.com/caiolandgraf/gest`
+go get github.com/caiolandgraf/gest/v2`
 
 /* ── Terminal lines ────────────────────────────────────────────────────────── */
 
@@ -1035,7 +1123,7 @@ const specCode = `package mypackage
 
 import (
     "testing"
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestCalculator(t *testing.T) {
@@ -1120,7 +1208,7 @@ const fullApiCode = `package mypackage
 
 import (
     "testing"
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"
 )
 
 // ── calculator_test.go ───────────────────────────────────────────────
@@ -1161,10 +1249,10 @@ git clone https://github.com/caiolandgraf/gest.git
 cd gest/examples
 
 # Run with beautiful gest output
-go run ../cmd/gest ./...
+gest ./...
 
 # With coverage table
-go run ../cmd/gest -c ./...
+gest -c ./...
 
 # Or plain go test
 go test ./...`
@@ -1173,7 +1261,7 @@ const migrationV1Code = `// ── BEFORE (v1) ───────────
 // calculator_spec.go
 package main
 
-import "github.com/caiolandgraf/gest/gest"
+import "github.com/caiolandgraf/gest/gest"  // v1 path
 
 var s = gest.Describe("calculator")
 
@@ -1195,7 +1283,7 @@ package mypackage   // ← your actual package name
 
 import (
     "testing"
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"  // v2 path
 )
 
 func TestCalculator(t *testing.T) {

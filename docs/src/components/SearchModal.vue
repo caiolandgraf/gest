@@ -213,7 +213,7 @@ const allItems = [
     type: 'section',
     icon: '📦',
     title: 'Installation',
-    desc: 'go get github.com/caiolandgraf/gest',
+    desc: 'go get github.com/caiolandgraf/gest/v2',
     route: '/docs',
     hash: 'installation'
   },

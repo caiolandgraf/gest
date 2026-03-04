@@ -9,7 +9,7 @@
       <RouterLink to="/" class="navbar__logo" @click="closeMenu">
         <span class="navbar__logo-icon">🧪</span>
         <span class="navbar__logo-text">gest</span>
-        <span class="navbar__version">v1.1.0</span>
+        <span class="navbar__version">v2.0.3</span>
       </RouterLink>
 
       <!-- Desktop Nav -->
