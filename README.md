@@ -116,9 +116,9 @@ go test ./...
 Pass `--watch` (or `-w`) to enter watch mode. gest re-runs `go test` automatically whenever any `.go` file changes — no recompilation overhead, just the native `go test` cache at full speed.
 
 ```bash
-gest --watch          # watch mode
-gest -w               # shorthand
-gest --watch -c       # watch + coverage table
+gest --watch ./...    # watch mode
+gest -w ./...         # shorthand
+gest --watch -c ./... # watch + coverage table
 ```
 
 - Rapid saves are collapsed via a **30 ms debounce** — one clean result per save.
@@ -211,7 +211,79 @@ go test ./...
 go run ../cmd/gest -c ./...
 
 # Watch mode
-go run ../cmd/gest --watch
+go run ../cmd/gest --watch ./...
+```
+
+## Migrating from v1
+
+v1 used `*_spec.go` files with `init()` / `Register()` / `RunRegistered()` and a `main.go` entry point. v2 drops all of that in favour of standard Go test files.
+
+### What changed
+
+| v1 | v2 |
+|---|---|
+| `*_spec.go` files with `package main` | `*_test.go` files with your package name |
+| `func init() { gest.Register(s) }` | No registration needed |
+| `func main() { gest.RunRegistered() }` | No `main.go` needed |
+| `go run .` to execute tests | `go test ./...` or `gest ./...` |
+| Watch mode built into the lib | Watch mode in the CLI (`gest --watch ./...`) |
+
+### Step-by-step
+
+**1. Rename your spec files**
+
+```bash
+# rename *_spec.go → *_test.go
+mv calculator_spec.go calculator_test.go
+```
+
+**2. Change the package and remove boilerplate**
+
+```go
+// before (v1)
+package main
+
+import "github.com/caiolandgraf/gest/gest"
+
+var s = gest.Describe("calculator")
+
+func init() {
+    s.It("adds", func(t *gest.T) { ... })
+    gest.Register(s)
+}
+```
+
+```go
+// after (v2)
+package mypackage   // ← your actual package name
+
+import (
+    "testing"
+    "github.com/caiolandgraf/gest/gest"
+)
+
+func TestCalculator(t *testing.T) {
+    s := gest.Describe("calculator")
+    s.It("adds", func(t *gest.T) { ... })
+    s.Run(t)   // ← hands off to go test
+}
+```
+
+**3. Delete `main.go`**
+
+The `main.go` that called `gest.RunRegistered()` is no longer needed. Delete it.
+
+**4. Install the CLI**
+
+```bash
+go install github.com/caiolandgraf/gest/cmd/gest@latest
+```
+
+**5. Run**
+
+```bash
+gest ./...           # beautiful output (replaces go run .)
+go test ./...        # plain go test also works
 ```
 
 ## Philosophy

@@ -606,6 +606,134 @@ go run . --coverage</code></pre>
         <hr class="docs-divider" />
 
         <!-- ── Example project ─────────────────────────────────────────────── -->
+        <!-- ── Migration ──────────────────────────────────────────────────── -->
+        <section class="docs-section" id="migration">
+          <div class="docs-section__anchor-header">
+            <h2 class="docs-section__title">
+              <a
+                href="#migration"
+                class="docs-anchor"
+                @click.prevent="scrollTo('migration')"
+                aria-label="Link to Migrating from v1"
+                >#</a
+              >
+              Migrating from v1
+            </h2>
+          </div>
+          <p>
+            v1 used <code>*_spec.go</code> files with <code>init()</code> /
+            <code>Register()</code> / <code>RunRegistered()</code> and a
+            <code>main.go</code> entry point. v2 drops all of that in favour of
+            standard Go test files — no boilerplate, no separate binary.
+          </p>
+
+          <div class="docs-callout docs-callout--info">
+            <span class="docs-callout__icon">💡</span>
+            <div>
+              <strong>The assertion API is unchanged.</strong> Every
+              <code>Describe</code>, <code>It</code>, <code>Expect</code> and
+              matcher call you wrote in v1 works exactly the same in v2.
+            </div>
+          </div>
+
+          <h3 class="docs-subsection-title">What changed</h3>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>v1</th>
+                  <th>v2</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>*_spec.go</code> with <code>package main</code></td>
+                  <td><code>*_test.go</code> with your package name</td>
+                </tr>
+                <tr>
+                  <td><code>func init() { gest.Register(s) }</code></td>
+                  <td>No registration needed</td>
+                </tr>
+                <tr>
+                  <td><code>func main() { gest.RunRegistered() }</code></td>
+                  <td>No <code>main.go</code> needed</td>
+                </tr>
+                <tr>
+                  <td><code>go run .</code></td>
+                  <td><code>gest ./...</code> or <code>go test ./...</code></td>
+                </tr>
+                <tr>
+                  <td>Watch mode built into the lib</td>
+                  <td><code>gest --watch ./...</code> via the CLI</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="docs-subsection-title">Before &amp; after</h3>
+
+          <div class="code-block">
+            <div class="code-block__header">
+              <span class="code-block__lang">go</span>
+              <button
+                class="code-block__copy"
+                @click="copy(migrationV1Code, 'migration-v1')"
+              >
+                {{ copied === 'migration-v1' ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+            <pre><code class="language-go">{{ migrationV1Code }}</code></pre>
+          </div>
+
+          <div class="code-block">
+            <div class="code-block__header">
+              <span class="code-block__lang">go</span>
+              <button
+                class="code-block__copy"
+                @click="copy(migrationV2Code, 'migration-v2')"
+              >
+                {{ copied === 'migration-v2' ? '✓ Copied' : 'Copy' }}
+              </button>
+            </div>
+            <pre><code class="language-go">{{ migrationV2Code }}</code></pre>
+          </div>
+
+          <h3 class="docs-subsection-title">Step-by-step</h3>
+          <ol class="migration-steps">
+            <li>
+              <strong>Rename</strong> every <code>*_spec.go</code> to
+              <code>*_test.go</code>.
+            </li>
+            <li>
+              <strong>Change <code>package main</code></strong> to your actual
+              package name (e.g. <code>package mypackage</code>).
+            </li>
+            <li>
+              <strong>Wrap each suite</strong> in a
+              <code>func TestXxx(t *testing.T)</code> and call
+              <code>s.Run(t)</code> at the end.
+            </li>
+            <li>
+              <strong>Remove</strong> the <code>init()</code> registration calls
+              and delete <code>main.go</code>.
+            </li>
+            <li>
+              <strong>Install the CLI</strong>:
+              <code
+                >go install github.com/caiolandgraf/gest/cmd/gest@latest</code
+              >
+            </li>
+            <li>
+              <strong>Run</strong> with <code>gest ./...</code> for beautiful
+              output, or <code>go test ./...</code> for plain output — both
+              work.
+            </li>
+          </ol>
+        </section>
+
+        <hr class="docs-divider" />
+
         <section class="docs-section" id="example">
           <div class="docs-section__anchor-header">
             <h2 class="docs-section__title">
@@ -763,6 +891,10 @@ const navGroups = [
       { id: 'philosophy', label: 'Philosophy' },
       { id: 'example', label: 'Example Project' }
     ]
+  },
+  {
+    label: 'Migration',
+    items: [{ id: 'migration', label: 'Migrating from v1' }]
   }
 ]
 
@@ -1036,6 +1168,45 @@ go run ../cmd/gest -c ./...
 
 # Or plain go test
 go test ./...`
+
+const migrationV1Code = `// ── BEFORE (v1) ────────────────────────────────────────────────
+// calculator_spec.go
+package main
+
+import "github.com/caiolandgraf/gest/gest"
+
+var s = gest.Describe("calculator")
+
+func init() {
+    s.It("adds correctly", func(t *gest.T) {
+        t.Expect(calc.Add(2, 2)).ToBe(float64(4))
+    })
+    gest.Register(s)
+}
+
+// main.go
+func main() {
+    gest.RunRegistered()
+}`
+
+const migrationV2Code = `// ── AFTER (v2) ─────────────────────────────────────────────────
+// calculator_test.go
+package mypackage   // ← your actual package name
+
+import (
+    "testing"
+    "github.com/caiolandgraf/gest/gest"
+)
+
+func TestCalculator(t *testing.T) {
+    s := gest.Describe("calculator")
+
+    s.It("adds correctly", func(t *gest.T) {
+        t.Expect(calc.Add(2, 2)).ToBe(float64(4))
+    })
+
+    s.Run(t)   // ← hands off to go test, no main.go needed
+}`
 </script>
 
 <style scoped>
@@ -1495,8 +1666,63 @@ go test ./...`
     font-size: 0.82rem;
   }
 
+  .migration-steps {
+    padding-left: 1.25rem;
+  }
+
   .example-code {
     display: none;
   }
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin: 1.25rem 0;
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table-wrapper th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.table-wrapper td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: middle;
+}
+
+.table-wrapper tr:last-child td {
+  border-bottom: none;
+}
+
+.migration-steps {
+  margin: 1rem 0 1.5rem;
+  padding-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.migration-steps li {
+  color: var(--text-2);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.migration-steps li strong {
+  color: var(--text-1);
 }
 </style>

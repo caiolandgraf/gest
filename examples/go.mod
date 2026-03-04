@@ -1,6 +1,6 @@
 module github.com/caiolandgraf/gest/examples
 
-go 1.25.7
+go 1.23
 
 require github.com/caiolandgraf/gest v0.0.0
 
