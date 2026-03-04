@@ -413,6 +413,7 @@ func (s *Suite) It(name string, fn func(*T)) *Suite {
 //	}
 func (s *Suite) Run(gt *testing.T) {
 	gt.Helper()
+	gt.Log("gest:describe:" + s.name)
 	for _, tc := range s.tests {
 		tc := tc
 		gt.Run(tc.name, func(gt *testing.T) {

@@ -45,17 +45,18 @@ type testEvent struct {
 
 type testCase struct {
 	name    string
-	display string // friendly name shown in output (strips "Test" prefix)
+	display string // friendly name shown in output (the It() description)
 	passed  bool
 	failed  bool
 	skipped bool
 	elapsed time.Duration
-	output  []string // output lines captured for this top-level test
+	output  []string // output lines captured for failures
 }
 
 type suite struct {
 	pkg         string
-	name        string
+	name        string // the Describe("name") value, or TestXxx fallback
+	topTest     string // the TestXxx function name
 	tests       []*testCase
 	byName      map[string]*testCase
 	passed      int
@@ -66,43 +67,70 @@ type suite struct {
 	buildOutput []string
 }
 
-func newSuite(pkg string) *suite {
-	name := pkg
-	if idx := strings.LastIndex(pkg, "/"); idx >= 0 {
-		name = pkg[idx+1:]
+func newSuite(pkg, topTest string) *suite {
+	// default display name: strip "Test" prefix, underscores → spaces
+	name := topTest
+	if strings.HasPrefix(name, "Test") {
+		name = name[4:]
 	}
-	return &suite{pkg: pkg, name: name, byName: make(map[string]*testCase)}
+	name = strings.ReplaceAll(name, "_", " ")
+	return &suite{
+		pkg:     pkg,
+		topTest: topTest,
+		name:    name,
+		byName:  make(map[string]*testCase),
+	}
 }
 
-// getOrCreate returns the top-level testCase for the given test name.
-// Subtests (names containing "/") are grouped under their parent.
-func (s *suite) getOrCreate(testName string) *testCase {
-	top := testName
-	if idx := strings.Index(testName, "/"); idx >= 0 {
-		top = testName[:idx]
-	}
-	if tc, ok := s.byName[top]; ok {
+// getOrCreateItem returns the testCase for a subtest name (the It() description).
+// It un-escapes Go's test name encoding (underscores back to spaces, etc.).
+func (s *suite) getOrCreateItem(subName string) *testCase {
+	if tc, ok := s.byName[subName]; ok {
 		return tc
 	}
-	// build a friendly display name: strip leading "Test" prefix and
-	// replace underscores with spaces so "TestCalculator" → "Calculator"
-	display := top
-	if strings.HasPrefix(display, "Test") {
-		display = display[4:]
-	}
-	display = strings.ReplaceAll(display, "_", " ")
-	tc := &testCase{name: top, display: display}
+	display := strings.ReplaceAll(subName, "_", " ")
+	tc := &testCase{name: subName, display: display}
 	s.tests = append(s.tests, tc)
-	s.byName[top] = tc
+	s.byName[subName] = tc
 	return tc
 }
 
 // ── stream parser ─────────────────────────────────────────────────────────────
 
+// parseStream reads go test -json events and builds one suite per top-level
+// TestXxx function. Each It() subtest becomes a testCase inside that suite.
+// The Describe("name") value is captured from the "gest:describe:<name>" log
+// line emitted by Suite.Run and used as the suite display name.
 func parseStream(r io.Reader) ([]*suite, bool) {
+	// key: "pkg::TestXxx"
+	byKey := map[string]*suite{}
 	var suites []*suite
-	byPkg := map[string]*suite{}
 	allPassed := true
+
+	// pkgBuildOutput holds package-level output lines (build errors, etc.)
+	pkgBuildOutput := map[string][]string{}
+	pkgBuildFailed := map[string]bool{}
+
+	key := func(pkg, top string) string { return pkg + "::" + top }
+
+	getSuite := func(pkg, top string) *suite {
+		k := key(pkg, top)
+		if s, ok := byKey[k]; ok {
+			return s
+		}
+		s := newSuite(pkg, top)
+		byKey[k] = s
+		suites = append(suites, s)
+		return s
+	}
+
+	// topOf returns the top-level TestXxx name from any test name.
+	topOf := func(testName string) string {
+		if idx := strings.Index(testName, "/"); idx >= 0 {
+			return testName[:idx]
+		}
+		return testName
+	}
 
 	dec := json.NewDecoder(bufio.NewReader(r))
 	for {
@@ -114,80 +142,180 @@ func parseStream(r io.Reader) ([]*suite, bool) {
 			continue
 		}
 
-		s, exists := byPkg[ev.Package]
-		if !exists {
-			s = newSuite(ev.Package)
-			byPkg[ev.Package] = s
-			suites = append(suites, s)
-		}
-
 		isSubtest := strings.Contains(ev.Test, "/")
 
 		switch ev.Action {
 		case "output":
 			if ev.Test == "" {
-				// package-level output (build errors, etc.)
-				s.buildOutput = append(s.buildOutput, ev.Output)
-			} else {
-				// accumulate subtest output on the parent so we can print it on failure
-				tc := s.getOrCreate(ev.Test)
-				if isSubtest {
-					tc.output = append(tc.output, ev.Output)
-				}
+				pkgBuildOutput[ev.Package] = append(
+					pkgBuildOutput[ev.Package],
+					ev.Output,
+				)
+				continue
+			}
+			top := topOf(ev.Test)
+			s := getSuite(ev.Package, top)
+
+			// Check for the gest:describe sentinel emitted by Suite.Run.
+			// go test formats t.Log output as "    file:line: message\n"
+			// It can arrive on the top-level test or a subtest output line.
+			const descPrefix = "gest:describe:"
+			if trimmed := strings.TrimSpace(
+				ev.Output,
+			); strings.Contains(
+				trimmed,
+				descPrefix,
+			) {
+				idx := strings.Index(trimmed, descPrefix)
+				s.name = trimmed[idx+len(descPrefix):]
+				continue
+			}
+
+			if isSubtest {
+				subName := stripDupSuffix(
+					ev.Test[strings.Index(ev.Test, "/")+1:],
+				)
+				tc := s.getOrCreateItem(subName)
+				tc.output = append(tc.output, ev.Output)
 			}
 
 		case "run":
-			if ev.Test != "" {
-				s.getOrCreate(ev.Test)
+			if ev.Test != "" && !isSubtest {
+				getSuite(ev.Package, ev.Test)
 			}
 
 		case "pass":
 			if ev.Test == "" {
-				s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
-			} else {
-				tc := s.getOrCreate(ev.Test)
-				elapsed := time.Duration(ev.Elapsed * float64(time.Second))
-				if !isSubtest {
-					tc.passed = true
-					tc.elapsed = elapsed
-					s.passed++
-				} else if elapsed > tc.elapsed {
-					// accumulate subtest elapsed onto parent so timing is meaningful
-					tc.elapsed += elapsed
+				// package done — attach any build output
+				for _, s := range suites {
+					if s.pkg == ev.Package {
+						s.elapsed = time.Duration(
+							ev.Elapsed * float64(time.Second),
+						)
+					}
 				}
+				continue
+			}
+			top := topOf(ev.Test)
+			s := getSuite(ev.Package, top)
+			elapsed := time.Duration(ev.Elapsed * float64(time.Second))
+
+			if !isSubtest {
+				// top-level TestXxx finished — elapsed already set by subtest accumulation
+				if s.elapsed == 0 {
+					s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
+				}
+			} else {
+				subName := stripDupSuffix(
+					ev.Test[strings.Index(ev.Test, "/")+1:],
+				)
+				tc := s.getOrCreateItem(subName)
+				tc.passed = true
+				tc.elapsed = elapsed
+				s.elapsed += elapsed
+				s.passed++
 			}
 
 		case "fail":
 			if ev.Test == "" {
-				s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
+				allPassed = false
+				// mark build failure for suites in this package that have no tests
+				if _, hasSuites := func() (*suite, bool) {
+					for _, s := range suites {
+						if s.pkg == ev.Package {
+							return s, true
+						}
+					}
+					return nil, false
+				}(); !hasSuites {
+					// create a sentinel build-failed suite for the package
+					pkg := ev.Package
+					pkgName := pkg
+					if idx := strings.LastIndex(pkg, "/"); idx >= 0 {
+						pkgName = pkg[idx+1:]
+					}
+					s := &suite{
+						pkg:         pkg,
+						name:        pkgName,
+						buildFailed: true,
+						buildOutput: pkgBuildOutput[pkg],
+						byName:      make(map[string]*testCase),
+					}
+					suites = append(suites, s)
+					pkgBuildFailed[pkg] = true
+				} else {
+					for _, s := range suites {
+						if s.pkg == ev.Package && len(s.tests) == 0 {
+							s.buildFailed = true
+							s.buildOutput = pkgBuildOutput[ev.Package]
+						}
+					}
+				}
+				continue
+			}
+			top := topOf(ev.Test)
+			s := getSuite(ev.Package, top)
+			elapsed := time.Duration(ev.Elapsed * float64(time.Second))
+
+			if !isSubtest {
+				if s.elapsed == 0 {
+					s.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
+				}
+				// if no subtests were recorded, this is a build/compile failure
 				if len(s.tests) == 0 {
 					s.buildFailed = true
+					s.buildOutput = pkgBuildOutput[ev.Package]
 				}
 				allPassed = false
 			} else {
-				tc := s.getOrCreate(ev.Test)
-				elapsed := time.Duration(ev.Elapsed * float64(time.Second))
-				if !isSubtest {
-					tc.failed = true
-					tc.elapsed = elapsed
-					s.failed++
-					allPassed = false
-				} else if elapsed > tc.elapsed {
-					tc.elapsed += elapsed
-				}
+				subName := stripDupSuffix(
+					ev.Test[strings.Index(ev.Test, "/")+1:],
+				)
+				tc := s.getOrCreateItem(subName)
+				tc.failed = true
+				tc.elapsed = elapsed
+				s.elapsed += elapsed
+				s.failed++
+				allPassed = false
 			}
 
 		case "skip":
-			if ev.Test != "" && !isSubtest {
-				tc := s.getOrCreate(ev.Test)
-				tc.skipped = true
-				tc.elapsed = time.Duration(ev.Elapsed * float64(time.Second))
-				s.skipped++
+			if ev.Test == "" || !isSubtest {
+				continue
 			}
+			top := topOf(ev.Test)
+			s := getSuite(ev.Package, top)
+			subName := stripDupSuffix(ev.Test[strings.Index(ev.Test, "/")+1:])
+			tc := s.getOrCreateItem(subName)
+			tc.skipped = true
+			elapsed := time.Duration(ev.Elapsed * float64(time.Second))
+			tc.elapsed = elapsed
+			s.elapsed += elapsed
+			s.skipped++
 		}
 	}
 
 	return suites, allPassed
+}
+
+// stripDupSuffix removes Go's automatic "#NN" deduplication suffix from
+// subtest names that arise when two It() cases share the same description.
+// e.g. "adding_2_+_2_should_return_4#01" → "adding_2_+_2_should_return_4"
+func stripDupSuffix(name string) string {
+	if idx := strings.LastIndex(name, "#"); idx >= 0 {
+		suffix := name[idx+1:]
+		allDigits := len(suffix) > 0
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			return name[:idx]
+		}
+	}
+	return name
 }
 
 // ── renderer ──────────────────────────────────────────────────────────────────
@@ -240,7 +368,8 @@ func printSuiteFailures(s *suite) {
 				strings.HasPrefix(stripped, "=== CONT") ||
 				strings.HasPrefix(stripped, "--- PASS") ||
 				strings.HasPrefix(stripped, "--- FAIL") ||
-				strings.HasPrefix(stripped, "--- SKIP") {
+				strings.HasPrefix(stripped, "--- SKIP") ||
+				strings.Contains(stripped, "gest:describe:") {
 				continue
 			}
 			// lines already formatted by the gest lib (contain ANSI ESC) pass through as-is
