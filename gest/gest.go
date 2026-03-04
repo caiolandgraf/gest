@@ -157,7 +157,15 @@ func watchBuildAndRun(tmpDir string, args []string) {
 		bin += ".exe"
 	}
 
-	build := exec.Command("go", "build", "-o", bin, ".")
+	build := exec.Command(
+		"go",
+		"build",
+		"-trimpath",
+		"-buildvcs=false",
+		"-o",
+		bin,
+		".",
+	)
 	build.Stdout = os.Stdout
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
