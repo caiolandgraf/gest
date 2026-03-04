@@ -3,7 +3,7 @@ package examples
 import (
 	"testing"
 
-	"github.com/caiolandgraf/gest/gest"
+	"github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestCalculator(t *testing.T) {

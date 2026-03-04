@@ -1,4 +1,4 @@
-module github.com/caiolandgraf/gest
+module github.com/caiolandgraf/gest/v2
 
 go 1.23
 

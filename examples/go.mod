@@ -2,11 +2,6 @@ module github.com/caiolandgraf/gest/examples
 
 go 1.23
 
-require github.com/caiolandgraf/gest v0.0.0
+require github.com/caiolandgraf/gest/v2 v2.0.0
 
-require (
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
-)
-
-replace github.com/caiolandgraf/gest => ../
+replace github.com/caiolandgraf/gest/v2 => ../

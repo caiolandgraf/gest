@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/caiolandgraf/gest/gest"
+	"github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestStrings(t *testing.T) {

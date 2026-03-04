@@ -7,7 +7,7 @@
 <p>A Jest-inspired testing library for Go — beautiful output, powered by <code>go test</code>.</p>
 
 <p>
-  <a href="https://pkg.go.dev/github.com/caiolandgraf/gest">
+  <a href="https://pkg.go.dev/github.com/caiolandgraf/gest/v2">
     <img src="https://img.shields.io/badge/go-reference-007d9c?logo=go&logoColor=white" alt="Go Reference"/>
   </a>
   <a href="./LICENSE">
@@ -41,17 +41,17 @@ gest has two parts that work together:
 
 | Part | What it does |
 |---|---|
-| **lib** `github.com/caiolandgraf/gest/gest` | Provides `Describe`, `It`, `Expect` and all matchers. You write tests with it inside standard `_test.go` files using `Suite.Run(t)`. |
-| **CLI** `github.com/caiolandgraf/gest/cmd/gest` | Runs `go test -v -json` under the hood, parses the event stream, and renders the beautiful Jest-style output. |
+| **lib** `github.com/caiolandgraf/gest/v2/gest` | Provides `Describe`, `It`, `Expect` and all matchers. You write tests with it inside standard `_test.go` files using `Suite.Run(t)`. |
+| **CLI** `github.com/caiolandgraf/gest/v2/cmd/gest` | Runs `go test -v -json` under the hood, parses the event stream, and renders the beautiful Jest-style output. |
 
 ## Installation
 
 ```bash
 # Add the library to your project
-go get github.com/caiolandgraf/gest
+go get github.com/caiolandgraf/gest/v2
 
 # Install the CLI globally
-go install github.com/caiolandgraf/gest/cmd/gest@latest
+go install github.com/caiolandgraf/gest/v2/cmd/gest@latest
 ```
 
 ## Project structure
@@ -79,7 +79,7 @@ package mypackage
 import (
     "testing"
 
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestCalculator(t *testing.T) {
@@ -243,7 +243,7 @@ mv calculator_spec.go calculator_test.go
 // before (v1)
 package main
 
-import "github.com/caiolandgraf/gest/gest"
+import "github.com/caiolandgraf/gest/v2/gest"
 
 var s = gest.Describe("calculator")
 
@@ -259,7 +259,7 @@ package mypackage   // ← your actual package name
 
 import (
     "testing"
-    "github.com/caiolandgraf/gest/gest"
+    "github.com/caiolandgraf/gest/v2/gest"
 )
 
 func TestCalculator(t *testing.T) {
@@ -276,7 +276,7 @@ The `main.go` that called `gest.RunRegistered()` is no longer needed. Delete it.
 **4. Install the CLI**
 
 ```bash
-go install github.com/caiolandgraf/gest/cmd/gest@latest
+go install github.com/caiolandgraf/gest/v2/cmd/gest@latest
 ```
 
 **5. Run**
