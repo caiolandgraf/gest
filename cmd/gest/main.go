@@ -1,3 +1,4 @@
+// cmd/gest/main.go
 package main
 
 import (
@@ -5,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -136,7 +138,7 @@ func parseStream(r io.Reader) ([]*suite, []*pkgResult, bool) {
 		return testName
 	}
 
-	dec := json.NewDecoder(bufio.NewReader(r))
+	dec := json.NewDecoder(bufio.NewReaderSize(r, 64*1024))
 	for {
 		var ev testEvent
 		if err := dec.Decode(&ev); err != nil {
@@ -485,8 +487,23 @@ func printCoverageTable(suites []*suite) {
 
 // ── run ───────────────────────────────────────────────────────────────────────
 
-func runAll(args []string, showCoverage bool) bool {
-	goArgs := append([]string{"test", "-json"}, args...)
+// runAll executa os testes para os pacotes especificados.
+// Se packagePaths estiver vazio, executa para "./...".
+func runAll(packagePaths []string, extraGoTestArgs []string, showCoverage bool, noCache bool) bool {
+	goArgs := []string{"test", "-json"}
+
+	if noCache {
+		goArgs = append(goArgs, "-count=1")
+	}
+
+	if len(packagePaths) == 0 {
+		goArgs = append(goArgs, "./...") // Padrão: todos os pacotes
+	} else {
+		goArgs = append(goArgs, packagePaths...) // Rodar apenas os pacotes especificados
+	}
+
+	goArgs = append(goArgs, extraGoTestArgs...) // Argumentos adicionais passados pelo usuário
+
 	cmd := exec.Command("go", goArgs...)
 	cmd.Stderr = os.Stderr
 
@@ -534,32 +551,24 @@ func runAll(args []string, showCoverage bool) bool {
 		totalFailed += s.failed
 		totalSkipped += s.skipped
 	}
+
 	var totalTime time.Duration
 	for _, pr := range pkgResults {
 		totalTime += pr.elapsed
 	}
-	// fallback: if no package-level events arrived (e.g. build failure before
-	// any test ran), sum suite elapseds so the display is never empty
 	if totalTime == 0 {
 		for _, s := range suites {
 			totalTime += s.elapsed
 		}
 	}
+
 	suitesPassed := len(suites) - totalSuitesFailed
 	total := totalPassed + totalFailed + totalSkipped
 
 	fmt.Println()
 	if totalSuitesFailed > 0 {
-		fmt.Printf(
-			"%sTest Suites:%s %s%d failed%s, %d passed, %d total\n",
-			bold,
-			reset,
-			red+bold,
-			totalSuitesFailed,
-			reset,
-			suitesPassed,
-			len(suites),
-		)
+		fmt.Printf("%sTest Suites:%s %s%d failed%s, %d passed, %d total\n",
+			bold, reset, red+bold, totalSuitesFailed, reset, suitesPassed, len(suites))
 	} else {
 		fmt.Printf("%sTest Suites:%s %s%d passed%s, %d total\n",
 			bold, reset, green+bold, suitesPassed, reset, len(suites))
@@ -584,7 +593,43 @@ func runAll(args []string, showCoverage bool) bool {
 
 // ── watch mode ────────────────────────────────────────────────────────────────
 
-func watchTests(args []string, showCoverage bool) {
+// packageFileMap armazena o mapeamento de caminho de arquivo para o import path do pacote Go.
+var packageFileMap map[string]string
+
+// buildPackageFileMap preenche packageFileMap executando 'go list'.
+func buildPackageFileMap() error {
+	packageFileMap = make(map[string]string)
+	cmd := exec.Command("go", "list", "-f", "{{.Dir}} {{.ImportPath}}", "./...")
+	output, err := cmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to run 'go list': %w", err)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		dir := parts[0]
+		importPath := parts[1]
+
+		files, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, file := range files {
+			if !file.IsDir() && strings.HasSuffix(file.Name(), ".go") {
+				fullPath := filepath.Join(dir, file.Name())
+				packageFileMap[fullPath] = importPath
+			}
+		}
+	}
+	return nil
+}
+
+func watchTests(extraGoTestArgs []string, showCoverage bool, debounce time.Duration, noCache bool) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -593,15 +638,16 @@ func watchTests(args []string, showCoverage bool) {
 		os.Exit(0)
 	}()
 
-	fmt.Println("\ngest: running tests…")
-	runAll(args, showCoverage)
+	fmt.Println("\ngest: running initial tests…")
+	// Na primeira execução, rodamos todos os testes.
+	runAll([]string{"./..."}, extraGoTestArgs, showCoverage, noCache)
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "gest: %v\n", err)
 		os.Exit(1)
 	}
-	defer func() { _ = w.Close() }()
+	defer w.Close()
 
 	if err := watchAddDirs(w); err != nil {
 		fmt.Fprintf(os.Stderr, "gest: %v\n", err)
@@ -611,8 +657,9 @@ func watchTests(args []string, showCoverage bool) {
 	fmt.Println("\ngest: watching for changes… (Ctrl+C to stop)")
 
 	var (
-		mu    sync.Mutex
-		timer *time.Timer
+		mu              sync.Mutex
+		timer           *time.Timer
+		changedPackages = make(map[string]struct{}) // Usamos um map para garantir pacotes únicos
 	)
 	for {
 		select {
@@ -626,13 +673,45 @@ func watchTests(args []string, showCoverage bool) {
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Rename) == 0 {
 				continue
 			}
+
+			pkgPath, found := packageFileMap[event.Name]
+			if !found {
+				// Se o arquivo não foi mapeado (ex: novo arquivo em um novo pacote, ou arquivo temporário do editor)
+				// Por simplicidade, vamos re-executar todos os testes para garantir que nada seja perdido.
+				// Em um sistema mais robusto, poderíamos tentar re-mapear ou ignorar.
+				mu.Lock()
+				changedPackages["./..."] = struct{}{} // Força a rodar tudo
+				mu.Unlock()
+			} else {
+				mu.Lock()
+				changedPackages[pkgPath] = struct{}{} // Adiciona o pacote ao conjunto de pacotes modificados
+				mu.Unlock()
+			}
+
 			mu.Lock()
 			if timer != nil {
 				timer.Stop()
 			}
-			timer = time.AfterFunc(30*time.Millisecond, func() {
+			timer = time.AfterFunc(debounce, func() {
+				mu.Lock()
+				defer mu.Unlock()
+
+				if len(changedPackages) == 0 {
+					return // Nada para rodar
+				}
+
+				packagesToRun := make([]string, 0, len(changedPackages))
+				for pkg := range changedPackages {
+					packagesToRun = append(packagesToRun, pkg)
+				}
+				// Limpa o map para a próxima rodada.
+				// Usar um loop para compatibilidade com Go < 1.21
+				for k := range changedPackages {
+					delete(changedPackages, k)
+				}
+
 				fmt.Print("\033[2J\033[3J\033[H")
-				runAll(args, showCoverage)
+				runAll(packagesToRun, extraGoTestArgs, showCoverage, noCache)
 			})
 			mu.Unlock()
 		case err, ok := <-w.Errors:
@@ -649,22 +728,16 @@ func watchAddDirs(w *fsnotify.Watcher) error {
 	if err != nil {
 		return err
 	}
-	return filepath.Walk(
-		cwd,
-		func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			if !info.IsDir() {
-				return nil
-			}
-			name := info.Name()
-			if strings.HasPrefix(name, ".") || name == "vendor" {
-				return filepath.SkipDir
-			}
-			return w.Add(path)
-		},
-	)
+	return filepath.WalkDir(cwd, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if strings.HasPrefix(name, ".") || name == "vendor" || name == "node_modules" {
+			return filepath.SkipDir
+		}
+		return w.Add(path)
+	})
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -672,29 +745,47 @@ func watchAddDirs(w *fsnotify.Watcher) error {
 func main() {
 	var watchMode bool
 	var showCoverage bool
-	var passThrough []string
+	var noCache bool
+	var debounce = 80 * time.Millisecond
+	var extraGoTestArgs []string // Renomeado para clareza
 
 	for _, arg := range os.Args[1:] {
-		switch arg {
-		case "--watch", "-w":
+		switch {
+		case arg == "--watch" || arg == "-w":
 			watchMode = true
-		case "--coverage", "-c":
+		case arg == "--coverage" || arg == "-c":
 			showCoverage = true
+		case arg == "--no-cache": // Nova flag para desativar o cache do go test
+			noCache = true
+		case strings.HasPrefix(arg, "--debounce="):
+			if ms, err := time.ParseDuration(arg[len("--debounce="):]); err == nil {
+				debounce = ms
+			}
 		default:
-			passThrough = append(passThrough, arg)
+			extraGoTestArgs = append(extraGoTestArgs, arg)
 		}
 	}
 
-	if len(passThrough) == 0 {
-		passThrough = []string{"./..."}
+	if len(extraGoTestArgs) == 0 {
+		extraGoTestArgs = []string{"./..."} // Default para go test se nenhum argumento for passado
 	}
 
 	if watchMode {
-		watchTests(passThrough, showCoverage)
+		if err := buildPackageFileMap(); err != nil {
+			fmt.Fprintf(os.Stderr, "gest: error building package map: %v\n", err)
+			os.Exit(1)
+		}
+		watchTests(extraGoTestArgs, showCoverage, debounce, noCache)
 		return
 	}
 
-	if !runAll(passThrough, showCoverage) {
+	// Modo de execução normal (não watch)
+	if !runAll(
+		extraGoTestArgs,
+		nil, // No modo normal, não há pacotes específicos para filtrar, extraGoTestArgs já contém os pacotes
+		showCoverage,
+		noCache,
+	) {
 		os.Exit(1)
 	}
 }
