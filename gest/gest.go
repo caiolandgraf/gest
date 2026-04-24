@@ -1,5 +1,4 @@
-// cmd/gest/main.go
-package main
+package gest
 
 import (
 	"bufio"
